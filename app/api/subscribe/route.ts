@@ -36,7 +36,7 @@ export async function POST(request: Request) {
       email,
       created_at: new Date().toISOString(),
       status: "active",
-      preferences: {},
+      preferences: { all: true },
     });
 
     if (error) {

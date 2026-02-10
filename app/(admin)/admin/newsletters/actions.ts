@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
+import { getBaseUrl } from "@/lib/url";
 import { Resend } from "resend";
 import { WeeklyNewsletter } from "@/emails/WeeklyNewsletter";
 
@@ -156,7 +157,6 @@ export async function updateNewsletter(id: string, formData: FormData): Promise<
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 const FROM_EMAIL = process.env.RESEND_FROM ?? "House Of Tech <newsletter@emails.hot.tech>";
-const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://hot.tech";
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 function getNewsletterBySlugOrId(slugOrId: string): Promise<NewsletterRow | null> {
@@ -178,6 +178,16 @@ export async function sendTestEmail(
 
   const subject = newsletter.subject ?? "Newsletter";
   const slugVal = newsletter.slug ?? newsletter.id;
+  const baseUrl = getBaseUrl();
+
+  const { data: subscriber } = await client
+    .from("subscribers")
+    .select("id")
+    .eq("email", email.trim())
+    .maybeSingle();
+  const unsubscribeUrl = subscriber?.id
+    ? `${baseUrl}/unsubscribe?id=${subscriber.id}`
+    : `${baseUrl}/unsubscribe?id=test-preview-id`;
 
   const { error } = await resend.emails.send({
     from: FROM_EMAIL,
@@ -189,7 +199,8 @@ export async function sendTestEmail(
       content: newsletter.content ?? "",
       slug: slugVal,
       email: email.trim(),
-      baseUrl: BASE_URL,
+      unsubscribeUrl,
+      baseUrl,
     }),
   });
 
@@ -210,38 +221,46 @@ export async function broadcastNewsletter(slug: string): Promise<{ error?: strin
 
   const { data: subscribers, error: subsError } = await client
     .from("subscribers")
-    .select("email")
+    .select("id, email")
     .eq("status", "active");
 
   if (subsError) {
     console.error("[broadcastNewsletter] subscribers", subsError);
     return { error: "Failed to load subscribers." };
   }
-  const emails = (subscribers ?? []).map((r) => (r as { email: string }).email).filter(Boolean);
-  if (emails.length === 0) return { error: "No active subscribers." };
+  const subscriberList = (subscribers ?? []) as { id: string; email: string }[];
+  const filtered = subscriberList.filter((s) => s.email);
+  if (filtered.length === 0) return { error: "No active subscribers." };
 
   if (!process.env.RESEND_API_KEY) return { error: "RESEND_API_KEY is not set." };
 
   const subject = newsletter.subject ?? "Newsletter";
   const slugVal = newsletter.slug ?? newsletter.id;
+  const baseUrl = getBaseUrl();
 
-  for (const to of emails) {
+  for (const subscriber of filtered) {
+    const unsubscribeUrl = `${baseUrl}/unsubscribe?id=${subscriber.id}`;
+    console.log("[broadcastNewsletter] unsubscribe URL:", unsubscribeUrl);
     const { error } = await resend.emails.send({
       from: FROM_EMAIL,
-      to: [to],
+      to: [subscriber.email],
       subject,
+      headers: {
+        "List-Unsubscribe": unsubscribeUrl,
+      },
       react: WeeklyNewsletter({
         subject,
         previewText: newsletter.preview_text ?? subject,
         content: newsletter.content ?? "",
         slug: slugVal,
-        email: to,
-        baseUrl: BASE_URL,
+        email: subscriber.email,
+        unsubscribeUrl,
+        baseUrl,
       }),
     });
     if (error) {
       console.error("[broadcastNewsletter]", error);
-      return { error: `Failed to send to ${to}: ${error.message}`, count: 0 };
+      return { error: `Failed to send to ${subscriber.email}: ${error.message}`, count: 0 };
     }
   }
 
@@ -253,8 +272,8 @@ export async function broadcastNewsletter(slug: string): Promise<{ error?: strin
 
   if (updateError) {
     console.error("[broadcastNewsletter] update status", updateError);
-    return { error: "Emails sent but status update failed.", count: emails.length };
+    return { error: "Emails sent but status update failed.", count: filtered.length };
   }
 
-  return { count: emails.length };
+  return { count: filtered.length };
 }

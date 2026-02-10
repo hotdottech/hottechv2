@@ -20,6 +20,8 @@ export interface WeeklyNewsletterProps {
   slug: string;
   /** Subscriber email for the unsubscribe link (passed by send API per recipient). */
   email: string;
+  /** Full URL for the unsubscribe page (e.g. https://hot.tech/unsubscribe?id=...). Passed from server per recipient. */
+  unsubscribeUrl: string;
   /** Base URL for links (e.g. https://hot.tech). Passed from server so env is available. */
   baseUrl?: string;
 }
@@ -39,10 +41,10 @@ export function WeeklyNewsletter({
   content,
   slug,
   email,
+  unsubscribeUrl,
   baseUrl = DEFAULT_BASE_URL,
 }: WeeklyNewsletterProps) {
   const viewInBrowserUrl = `${baseUrl}/newsletters/${slug}`;
-  const unsubscribeUrl = `${baseUrl}/api/newsletter/unsubscribe?email=${encodeURIComponent(email)}`;
 
   return (
     <Html lang="en">
