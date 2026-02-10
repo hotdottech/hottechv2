@@ -11,6 +11,7 @@
   --color-hot-black: #050505;
   --color-hot-white: #F5F5F5;
   --color-hot-gray: #1A1A1A;
+  --color-hot-blue: #38bdf8;
 
   /* Typography: extend with font variables from layout (--font-*-loaded) */
   --font-sans: var(--font-sans-loaded), ui-sans-serif, system-ui, sans-serif, "Apple Color Emoji",

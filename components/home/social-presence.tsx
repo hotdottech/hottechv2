@@ -4,48 +4,83 @@ import {
   Instagram,
   MessageCircle,
   Linkedin,
-  Mail,
 } from "lucide-react";
 import { CardBase } from "@/components/ui/card-base";
 
 const platforms = [
   {
+    platform: "Twitter",
     icon: Twitter,
-    title: "Tech Insights & Rants",
-    description: "50k+ Followers",
+    iconClass: "text-sky-500",
+    handle: "@nirave",
+    description: "Tech insights, F1, and MUFC thoughts.",
     href: "https://x.com/nirave",
   },
   {
+    platform: "YouTube",
     icon: Youtube,
-    title: "House of Technology",
-    description: "Deep Dives & Reviews",
+    iconClass: "text-red-500",
+    handle: "@hotdottech",
+    description: "House of Technology - Deep dives into consumer tech.",
     href: "https://youtube.com/@houseoftech",
   },
   {
+    platform: "Instagram",
     icon: Instagram,
-    title: "Behind the Scenes",
-    description: "Visual Stories",
-    href: "https://instagram.com/nirave",
+    iconClass: "text-pink-500",
+    handle: "@hotdottech",
+    description: "Visual tech reviews and behind the scenes.",
+    href: "https://instagram.com/hotdottech",
   },
   {
+    platform: "Threads",
     icon: MessageCircle,
-    title: "Quick Takes",
-    description: "Community",
-    href: "https://threads.net/@nirave",
+    iconClass: "text-white",
+    handle: "@hotdottech",
+    description: "Quick tech takes and community discussions.",
+    href: "https://threads.net/@hotdottech",
   },
   {
+    platform: "Threads",
+    icon: MessageCircle,
+    iconClass: "text-white",
+    handle: "@niraveg",
+    description: "Personal thoughts and daily musings.",
+    href: "https://www.threads.net/@niraveg",
+  },
+  {
+    platform: "LinkedIn",
     icon: Linkedin,
-    title: "Professional Updates",
-    description: "Industry News",
-    href: "https://linkedin.com/in/nirave",
+    iconClass: "text-[#0A66C2]",
+    handle: "Nirave Gondhia",
+    description: "Professional updates and industry analysis.",
+    href: "https://www.linkedin.com/in/niravegondhia",
   },
   {
-    icon: Mail,
-    title: "Weekly Digest",
-    description: "The best of tech",
-    href: "#",
+    platform: "LinkedIn",
+    icon: Linkedin,
+    iconClass: "text-[#0A66C2]",
+    handle: "House of Tech",
+    description: "Company news and team updates.",
+    href: "https://www.linkedin.com/company/hotdottech/",
   },
-] as const;
+  {
+    platform: "Instagram",
+    icon: Instagram,
+    iconClass: "text-pink-500",
+    handle: "@techmeetstravel",
+    description: "Where technology meets the journey.",
+    href: "https://instagram.com/techmeetstravel",
+  },
+  {
+    platform: "Threads",
+    icon: MessageCircle,
+    iconClass: "text-white",
+    handle: "@techmeetstravel",
+    description: "Travel stories through a tech lens.",
+    href: "https://threads.net/@techmeetstravel",
+  },
+];
 
 export function SocialPresence() {
   return (
@@ -55,19 +90,26 @@ export function SocialPresence() {
           Social Presence
         </h2>
         <p className="mt-2 font-sans text-gray-400">
-          Connect with me across all platforms.
+          Connect with us across all these platforms.
         </p>
       </header>
       <div className="grid grid-cols-1 gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {platforms.map(({ icon: Icon, title, description, href }) => (
-          <CardBase key={title} href={href} className="p-5">
-            <span className="inline-flex text-hot-white/80">
-              <Icon className="h-6 w-6" aria-hidden />
+        {platforms.map(({ platform, icon: Icon, iconClass, handle, description, href }, i) => (
+          <CardBase
+            key={`${platform}-${handle}-${i}`}
+            href={href}
+            className="border-white/10 bg-white/5 p-5 hover:border-white/20"
+          >
+            <span className={`inline-flex ${iconClass}`} aria-hidden>
+              <Icon className="h-6 w-6" />
             </span>
-            <h3 className="mt-3 font-sans font-bold text-hot-white">
-              {title}
+            <h3 className="mt-3 text-lg font-bold leading-none text-white">
+              {platform}
             </h3>
-            <p className="mt-1 font-sans text-sm text-gray-400">
+            <p className="font-mono text-sm text-hot-blue mt-1 mb-3">
+              {handle}
+            </p>
+            <p className="text-xs leading-relaxed text-zinc-400">
               {description}
             </p>
           </CardBase>
