@@ -218,6 +218,45 @@ export async function getPost(slug: string): Promise<SanityPost | null> {
   }
 }
 
+const SANITY_NEWSLETTER_BY_SLUG_QUERY = `*[_type == "newsletter" && slug.current == $slug][0] {
+  _id,
+  subject,
+  "slug": slug.current,
+  publishedAt,
+  previewText,
+  body[] {
+    _key,
+    _type,
+    ...,
+    "post": _type == "reference" => @-> { title, "slug": slug.current, mainImage, excerpt }
+  }
+}`;
+
+export type NewsletterBodyBlock =
+  | { _key: string; _type: "block"; children?: unknown[]; markDefs?: unknown[] }
+  | { _key: string; _type: "reference"; post: { title: string | null; slug: string | null; mainImage: unknown; excerpt: string | null } | null }
+  | { _key: string; _type: "externalLink"; title?: string | null; url?: string | null; description?: string | null; image?: unknown }
+  | { _key: string; _type: "sectionHeader"; title?: string | null };
+
+export type SanityNewsletter = {
+  _id: string;
+  subject: string | null;
+  slug: string | null;
+  publishedAt: string | null;
+  previewText: string | null;
+  body: NewsletterBodyBlock[] | null;
+};
+
+export async function getNewsletter(slug: string): Promise<SanityNewsletter | null> {
+  try {
+    const doc = await client.fetch<SanityNewsletter | null>(SANITY_NEWSLETTER_BY_SLUG_QUERY, { slug });
+    return doc ?? null;
+  } catch (err) {
+    console.error("[getNewsletter]", err);
+    return null;
+  }
+}
+
 export async function getUnifiedFeed(): Promise<FeedItem[]> {
   const [internalPosts, authoryItems] = await Promise.all([
     getSanityPosts(),
