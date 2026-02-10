@@ -13,5 +13,9 @@ export const dynamic = "force-static";
 export { metadata, viewport } from "next-sanity/studio";
 
 export default function StudioPage() {
-  return <NextStudio config={config} />;
+  return (
+    <div className="relative flex h-full w-full flex-col">
+      <NextStudio config={config} style={{ height: "100%" }} />
+    </div>
+  );
 }

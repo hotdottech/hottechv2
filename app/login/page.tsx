@@ -2,7 +2,7 @@ import Link from "next/link";
 import { LoginForm } from "./login-form";
 import { login } from "./actions";
 
-export default function LoginPage({
+export default async function LoginPage({
   searchParams,
 }: {
   searchParams: Promise<{ next?: string }>;

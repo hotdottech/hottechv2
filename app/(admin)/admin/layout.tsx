@@ -16,10 +16,10 @@ export default async function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-screen bg-hot-black">
+    <div className="flex h-screen w-full overflow-hidden bg-hot-black">
       <AdminSidebar userEmail={user.email ?? ""} />
-      <main className="flex-1 overflow-auto">
-        <div className="p-6 lg:p-10">{children}</div>
+      <main className="relative flex h-full min-h-0 flex-1 flex-col overflow-hidden">
+        {children}
       </main>
     </div>
   );
