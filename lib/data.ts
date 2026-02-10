@@ -1,6 +1,6 @@
 import Parser from "rss-parser";
 import { parseISO } from "date-fns";
-import { client, urlFor } from "./sanity";
+import { supabase } from "./supabase";
 import type { FeedItem } from "./types";
 
 const PLACEHOLDER_IMAGE = "https://placehold.co/600x400/1a1a1a/FFF";
@@ -44,42 +44,6 @@ function getPublisherFromUrl(url: string): string {
   }
 }
 
-/** Get image URL from Authory RSS item (iTunes + media + enclosure + content regex). */
-function getImageFromAuthoryItem(item: AuthoryRssItem): string {
-  // 1. Check iTunes Image (often nested in $)
-  const itunesImg = item.itunesImage as { href?: string; $?: { href?: string } } | undefined;
-  const itunesHref = itunesImg?.href || itunesImg?.$?.href;
-  if (itunesHref) return itunesHref;
-
-  // Check 2: mediaContent attribute object (parser often maps XML attrs to $)
-  const mcAttr = (item.mediaContent as { $?: { url?: string } } | undefined)?.$?.url;
-  if (mcAttr && typeof mcAttr === "string") return mcAttr;
-
-  // Check 3: mediaContent direct url property
-  const mcUrl = (item.mediaContent as { url?: string } | undefined)?.url;
-  if (mcUrl && typeof mcUrl === "string") return mcUrl;
-
-  // Check 4: mediaThumbnail (attr or direct)
-  const mtAttr = (item.mediaThumbnail as { $?: { url?: string } } | undefined)?.$?.url;
-  if (mtAttr && typeof mtAttr === "string") return mtAttr;
-  const mtUrl = (item.mediaThumbnail as { url?: string } | undefined)?.url;
-  if (mtUrl && typeof mtUrl === "string") return mtUrl;
-
-  // Check 5: enclosure
-  const enclosureUrl = item.enclosure?.url;
-  if (enclosureUrl && typeof enclosureUrl === "string") return enclosureUrl;
-
-  // Check 6: regex on contentEncoded or content
-  const html =
-    (item.contentEncoded as string | undefined) ?? item.content;
-  const fromContent = extractImageFromContent(
-    typeof html === "string" ? html : undefined
-  );
-  if (fromContent) return fromContent;
-
-  return PLACEHOLDER_IMAGE;
-}
-
 type AuthoryRssItem = Parser.Item & {
   source?: string;
   mediaContent?: unknown;
@@ -88,11 +52,30 @@ type AuthoryRssItem = Parser.Item & {
   contentEncoded?: unknown;
 };
 
-/** Map Authory RSS item to FeedItem with video/social detection. */
+/** Get image URL from Authory RSS item. */
+function getImageFromAuthoryItem(item: AuthoryRssItem): string {
+  const itunesImg = item.itunesImage as { href?: string; $?: { href?: string } } | undefined;
+  const itunesHref = itunesImg?.href || itunesImg?.$?.href;
+  if (itunesHref) return itunesHref;
+  const mcAttr = (item.mediaContent as { $?: { url?: string } } | undefined)?.$?.url;
+  if (mcAttr && typeof mcAttr === "string") return mcAttr;
+  const mcUrl = (item.mediaContent as { url?: string } | undefined)?.url;
+  if (mcUrl && typeof mcUrl === "string") return mcUrl;
+  const mtAttr = (item.mediaThumbnail as { $?: { url?: string } } | undefined)?.$?.url;
+  if (mtAttr && typeof mtAttr === "string") return mtAttr;
+  const mtUrl = (item.mediaThumbnail as { url?: string } | undefined)?.url;
+  if (mtUrl && typeof mtUrl === "string") return mtUrl;
+  const enclosureUrl = item.enclosure?.url;
+  if (enclosureUrl && typeof enclosureUrl === "string") return enclosureUrl;
+  const html = (item.contentEncoded as string | undefined) ?? item.content;
+  const fromContent = extractImageFromContent(typeof html === "string" ? html : undefined);
+  if (fromContent) return fromContent;
+  return PLACEHOLDER_IMAGE;
+}
+
 function mapRssItemToFeedItem(item: AuthoryRssItem, index: number): FeedItem {
   const link = item.link ?? "";
   const linkLower = link.toLowerCase();
-
   let type: FeedItem["type"];
   if (linkLower.includes("youtube.com") || linkLower.includes("youtu.be")) {
     type = "video";
@@ -101,14 +84,11 @@ function mapRssItemToFeedItem(item: AuthoryRssItem, index: number): FeedItem {
   } else {
     type = "external-article";
   }
-
   const publisher = getPublisherFromUrl(link);
   const image = getImageFromAuthoryItem(item);
-
   const date = item.isoDate ?? item.pubDate ?? new Date().toISOString();
   const rawId = item.guid ?? `authory-${index}-${date}`;
   const id = typeof rawId === "string" ? rawId : String(rawId);
-
   return {
     id,
     title: item.title ?? "Untitled",
@@ -135,167 +115,101 @@ export async function getAuthoryFeed(): Promise<FeedItem[]> {
   }
 }
 
-const SANITY_POSTS_QUERY = `*[_type == "post"] | order(publishedAt desc) {
-  _id,
-  title,
-  "slug": slug.current,
-  publishedAt,
-  excerpt,
-  mainImage,
-  "author": author->name
-}`;
+/** Published posts from Supabase for the unified feed. */
+export async function getSupabasePosts(): Promise<FeedItem[]> {
+  const { data, error } = await supabase
+    .from("posts")
+    .select("id, title, slug, excerpt, main_image, created_at, updated_at")
+    .eq("status", "published")
+    .order("created_at", { ascending: false });
 
-type SanityPostResult = {
-  _id: string;
-  title: string | null;
-  slug: string | null;
-  publishedAt: string | null;
-  excerpt: string | null;
-  mainImage: unknown;
-  author: string | null;
-};
-
-export async function getSanityPosts(): Promise<FeedItem[]> {
-  try {
-    const posts = (await client.fetch<SanityPostResult[]>(SANITY_POSTS_QUERY)) ?? [];
-    return posts.map((post) => {
-      const slug = post.slug ?? post._id;
-      const imageUrl = post.mainImage
-        ? urlFor(post.mainImage).width(800).url()
-        : PLACEHOLDER_IMAGE;
-      const date = post.publishedAt ?? new Date().toISOString();
-      return {
-        id: post._id,
-        title: post.title ?? "Untitled",
-        excerpt: post.excerpt ?? undefined,
-        date,
-        type: "post",
-        source: "internal",
-        url: `/${slug}`,
-        image: imageUrl,
-        publisher: post.author ?? "Hot Tech",
-      };
-    });
-  } catch (err) {
-    console.error("[getSanityPosts]", err);
+  if (error) {
+    console.error("[getSupabasePosts]", error);
     return [];
   }
+
+  return (data ?? []).map((post) => ({
+    id: post.id,
+    title: post.title ?? "Untitled",
+    excerpt: post.excerpt ?? undefined,
+    date: post.updated_at ?? post.created_at ?? new Date().toISOString(),
+    type: "post" as const,
+    source: "internal" as const,
+    url: `/${post.slug ?? post.id}`,
+    image: post.main_image ?? undefined,
+    publisher: "Hot Tech",
+  }));
 }
 
-const SANITY_POST_BY_SLUG_QUERY = `*[_type == "post" && slug.current == $slug][0] {
-  _id,
-  title,
-  "slug": slug.current,
-  publishedAt,
-  excerpt,
-  body,
-  mainImage,
-  "author": author->{ name, image },
-  "categories": categories[]->{ title, "slug": slug.current },
-  "imageUrl": mainImage.asset->url
-}`;
-
-export type SanityPost = {
-  _id: string;
+export type SupabasePost = {
+  id: string;
   title: string | null;
   slug: string | null;
-  publishedAt: string | null;
   excerpt: string | null;
-  body: unknown;
-  mainImage: unknown;
-  author: { name: string | null; image: unknown } | null;
-  categories: { title: string | null; slug: string | null }[];
-  imageUrl: string | null;
+  body: string | null;
+  featured_image: string | null;
+  status: string | null;
+  created_at: string | null;
+  updated_at: string | null;
 };
 
-export async function getPost(slug: string): Promise<SanityPost | null> {
-  try {
-    const post = await client.fetch<SanityPost | null>(SANITY_POST_BY_SLUG_QUERY, { slug });
-    return post ?? null;
-  } catch (err) {
-    console.error("[getPost]", err);
+export async function getPostBySlug(slug: string): Promise<SupabasePost | null> {
+  const { data, error } = await supabase
+    .from("posts")
+    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at")
+    .eq("slug", slug)
+    .eq("status", "published")
+    .maybeSingle();
+
+  if (error) {
+    console.error("[getPostBySlug]", error);
     return null;
   }
-}
-
-const SANITY_NEWSLETTER_BY_SLUG_QUERY = `*[_type == "newsletter" && slug.current == $slug][0] {
-  ...,
-  "slug": slug.current,
-  body[] {
-    ...,
-    _type == 'reference' => {
-      "post": @->{
-        title,
-        "slug": slug.current,
-        mainImage,
-        excerpt
-      }
-    }
-  }
-}`;
-
-export type NewsletterBodyBlock =
-  | { _key: string; _type: "block"; children?: unknown[]; markDefs?: unknown[] }
-  | { _key: string; _type: "reference"; post: { title: string | null; slug: string | null; mainImage: unknown; excerpt: string | null } | null }
-  | { _key: string; _type: "externalLink"; title?: string | null; url?: string | null; description?: string | null; image?: unknown }
-  | { _key: string; _type: "sectionHeader"; title?: string | null };
-
-export type SanityNewsletter = {
-  _id: string;
-  subject: string | null;
-  slug: string | null;
-  publishedAt: string | null;
-  previewText: string | null;
-  body: NewsletterBodyBlock[] | null;
-};
-
-const SANITY_NEWSLETTERS_LIST_QUERY = `*[_type == "newsletter"] | order(publishedAt desc) {
-  _id,
-  subject,
-  "slug": slug.current,
-  publishedAt
-}`;
-
-export type SanityNewsletterListItem = {
-  _id: string;
-  subject: string | null;
-  slug: string | null;
-  publishedAt: string | null;
-};
-
-export async function getNewsletters(): Promise<SanityNewsletterListItem[]> {
-  try {
-    const docs = await client.fetch<SanityNewsletterListItem[]>(SANITY_NEWSLETTERS_LIST_QUERY);
-    return Array.isArray(docs) ? docs : [];
-  } catch (err) {
-    console.error("[getNewsletters]", err);
-    return [];
-  }
-}
-
-export async function getNewsletter(slug: string): Promise<SanityNewsletter | null> {
-  try {
-    const doc = await client.fetch<SanityNewsletter | null>(SANITY_NEWSLETTER_BY_SLUG_QUERY, { slug });
-    return doc ?? null;
-  } catch (err) {
-    console.error("[getNewsletter]", err);
-    return null;
-  }
+  if (!data) return null;
+  return {
+    ...data,
+    body: data.content != null ? String(data.content) : null,
+    featured_image: data.main_image != null ? String(data.main_image) : null,
+  } as SupabasePost;
 }
 
 export async function getUnifiedFeed(): Promise<FeedItem[]> {
   const [internalPosts, authoryItems] = await Promise.all([
-    getSanityPosts(),
+    getSupabasePosts(),
     getAuthoryFeed(),
   ]);
-
   const merged = [...internalPosts, ...authoryItems];
   const sorted = merged.sort((a, b) => {
     const dateA = parseISO(a.date).getTime();
     const dateB = parseISO(b.date).getTime();
-    return dateB - dateA; // descending (newest first)
+    return dateB - dateA;
   });
-
-  console.log("[getUnifiedFeed] mixed content:", sorted);
   return sorted;
+}
+
+/** Public newsletter by slug (for website archive). */
+export type NewsletterPublic = {
+  id: string;
+  subject: string | null;
+  slug: string | null;
+  preview_text: string | null;
+  content: string | null;
+  status: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+  published_at: string | null;
+};
+
+export async function getNewsletterBySlug(slug: string): Promise<NewsletterPublic | null> {
+  const { data, error } = await supabase
+    .from("newsletters")
+    .select("id, subject, slug, preview_text, content, status, created_at, updated_at, published_at")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[getNewsletterBySlug]", error);
+    return null;
+  }
+  return data as NewsletterPublic | null;
 }

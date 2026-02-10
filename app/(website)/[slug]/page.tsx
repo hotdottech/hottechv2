@@ -3,9 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { ArrowLeft } from "lucide-react";
-import { getPost } from "@/lib/data";
-import { CustomPortableText } from "@/components/feed/portable-text";
-import { urlFor } from "@/lib/sanity";
+import { getPostBySlug } from "@/lib/data";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -13,21 +11,16 @@ type PageProps = {
 
 export default async function ArticlePage({ params }: PageProps) {
   const { slug } = await params;
-  const post = await getPost(slug);
+  const post = await getPostBySlug(slug);
 
   if (!post) {
     notFound();
   }
 
-  const imageUrl = post.mainImage
-    ? urlFor(post.mainImage as Parameters<typeof urlFor>[0]).width(1200).url()
-    : null;
-  const authorName = post.author?.name ?? "Hot Tech";
-  const authorImage = post.author?.image;
+  const date = post.updated_at ?? post.created_at;
 
   return (
     <article className="mx-auto max-w-4xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
-      {/* Back to Home */}
       <Link
         href="/"
         className="mb-8 inline-flex items-center gap-1.5 font-sans text-sm text-gray-400 transition-colors hover:text-hot-white"
@@ -41,32 +34,19 @@ export default async function ArticlePage({ params }: PageProps) {
           {post.title ?? "Untitled"}
         </h1>
         <div className="flex flex-wrap items-center gap-3 text-gray-400">
-          {authorImage && (
-            <span className="relative h-10 w-10 shrink-0 overflow-hidden rounded-full bg-hot-gray">
-              <Image
-                src={urlFor(authorImage as Parameters<typeof urlFor>[0]).width(80).height(80).url()}
-                alt=""
-                fill
-                className="object-cover"
-                sizes="40px"
-              />
-            </span>
-          )}
-          <span className="font-sans text-sm text-hot-white/90">
-            {authorName}
-          </span>
-          {post.publishedAt && (
+          <span className="font-sans text-sm text-hot-white/90">Hot Tech</span>
+          {date && (
             <span className="font-sans text-sm">
-              {format(new Date(post.publishedAt), "MMM d, yyyy")}
+              {format(new Date(date), "MMM d, yyyy")}
             </span>
           )}
         </div>
       </header>
 
-      {imageUrl && (
+      {post.featured_image && (
         <div className="relative my-12 aspect-video w-full overflow-hidden rounded-xl bg-hot-gray">
           <Image
-            src={imageUrl}
+            src={post.featured_image}
             alt=""
             fill
             className="object-cover"
@@ -76,9 +56,10 @@ export default async function ArticlePage({ params }: PageProps) {
         </div>
       )}
 
-      <div className="mx-auto max-w-2xl">
-        <CustomPortableText value={post.body} />
-      </div>
+      <div
+        className="prose prose-invert mx-auto max-w-2xl max-w-none"
+        dangerouslySetInnerHTML={{ __html: post.body ?? "" }}
+      />
     </article>
   );
 }

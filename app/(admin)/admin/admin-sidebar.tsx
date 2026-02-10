@@ -5,9 +5,12 @@ import { usePathname } from "next/navigation";
 import { signOut } from "./actions";
 import { cn } from "@/lib/utils";
 
-const nav = [
-  { href: "/admin", label: "Dashboard" },
-  { href: "/admin/content", label: "Content Studio" },
+const contentLinks = [
+  { href: "/admin/posts", label: "All Posts" },
+  { href: "/admin/posts/new", label: "Add New" },
+] as const;
+
+const otherLinks = [
   { href: "/admin/newsletters", label: "Newsletters" },
   { href: "/admin/subscribers", label: "Subscribers" },
 ] as const;
@@ -26,20 +29,57 @@ export function AdminSidebar({ userEmail }: { userEmail: string }) {
         </Link>
       </div>
       <nav className="flex flex-1 flex-col gap-0.5 p-3">
-        {nav.map(({ href, label }) => (
-          <Link
-            key={href}
-            href={href}
-            className={cn(
-              "rounded-md px-3 py-2 font-sans text-sm transition-colors",
-              pathname === href || (href !== "/admin" && pathname.startsWith(href))
-                ? "bg-white/10 text-hot-white"
-                : "text-gray-400 hover:bg-white/5 hover:text-hot-white"
-            )}
-          >
-            {label}
-          </Link>
-        ))}
+        <Link
+          href="/admin"
+          className={cn(
+            "rounded-md px-3 py-2 font-sans text-sm transition-colors",
+            pathname === "/admin"
+              ? "bg-white/10 text-hot-white"
+              : "text-gray-400 hover:bg-white/5 hover:text-hot-white"
+          )}
+        >
+          Dashboard
+        </Link>
+        <div className="mt-2">
+          <p className="px-3 py-1 font-sans text-xs font-medium uppercase tracking-wider text-gray-500">
+            Content
+          </p>
+          {contentLinks.map(({ href, label }) => {
+            const isActive =
+              pathname === href ||
+              (href === "/admin/posts" && pathname.startsWith("/admin/posts/") && pathname !== "/admin/posts/new");
+            return (
+              <Link
+                key={href}
+                href={href}
+                className={cn(
+                  "block rounded-md px-3 py-2 font-sans text-sm transition-colors",
+                  isActive
+                    ? "bg-white/10 text-hot-white"
+                    : "text-gray-400 hover:bg-white/5 hover:text-hot-white"
+                )}
+              >
+                {label}
+              </Link>
+            );
+          })}
+        </div>
+        <div className="mt-2">
+          {otherLinks.map(({ href, label }) => (
+            <Link
+              key={href}
+              href={href}
+              className={cn(
+                "block rounded-md px-3 py-2 font-sans text-sm transition-colors",
+                pathname.startsWith(href)
+                  ? "bg-white/10 text-hot-white"
+                  : "text-gray-400 hover:bg-white/5 hover:text-hot-white"
+              )}
+            >
+              {label}
+            </Link>
+          ))}
+        </div>
       </nav>
       <div className="border-t border-white/10 p-3">
         <p className="truncate px-3 py-1 font-sans text-xs text-gray-400">

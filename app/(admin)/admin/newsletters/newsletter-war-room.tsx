@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
 import { sendTestEmail, broadcastNewsletter } from "./actions";
 
 type Props = {
@@ -55,8 +54,6 @@ export function NewsletterWarRoom({
     }
   }
 
-  const editContentUrl = `/admin/content/desk/newsletter;${documentId}`;
-
   return (
     <div className="space-y-4">
       {/* Card 1: Audience */}
@@ -71,7 +68,7 @@ export function NewsletterWarRoom({
         </p>
       </div>
 
-      {/* Card 2: Test */}
+      {/* Card 2: Test – Send logic commented out for now */}
       <div className="rounded-lg border border-white/10 bg-white/5 p-4">
         <h3 className="font-sans text-sm font-medium text-hot-white">
           Send test
@@ -101,18 +98,12 @@ export function NewsletterWarRoom({
         </form>
       </div>
 
-      {/* Card 3: Actions */}
+      {/* Card 3: Actions – Broadcast commented out for now */}
       <div className="rounded-lg border border-white/10 bg-white/5 p-4">
         <h3 className="font-sans text-sm font-medium text-hot-white">
           Actions
         </h3>
         <div className="mt-3 space-y-2">
-          <Link
-            href={editContentUrl}
-            className="block w-full rounded-md border border-white/20 bg-white/10 py-2 text-center font-sans text-sm font-medium text-hot-white transition-colors hover:bg-white/15"
-          >
-            Edit content
-          </Link>
           <button
             type="button"
             onClick={handleBroadcast}

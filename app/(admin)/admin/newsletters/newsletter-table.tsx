@@ -3,12 +3,12 @@
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { format } from "date-fns";
-import type { SanityNewsletterListItem } from "@/lib/data";
+import type { NewsletterRow } from "./actions";
 
 export function NewsletterTable({
   newsletters,
 }: {
-  newsletters: SanityNewsletterListItem[];
+  newsletters: NewsletterRow[];
 }) {
   const router = useRouter();
 
@@ -25,18 +25,15 @@ export function NewsletterTable({
   return (
     <>
       {newsletters.map((item) => {
-        const status = item.publishedAt == null ? "Draft" : "Sent";
-        const href = item.slug ? `/admin/newsletters/${item.slug}` : null;
+        const status = item.status === "sent" || item.published_at != null ? "Sent" : "Draft";
+        const href = `/admin/newsletters/${item.id}`;
+        const date = item.updated_at ?? item.created_at;
         return (
           <tr
-            key={item._id}
-            className={
-              href
-                ? "cursor-pointer border-b border-white/5 transition-colors hover:bg-white/5"
-                : "border-b border-white/5"
-            }
-            onClick={href ? () => router.push(href) : undefined}
-            role={href ? "button" : undefined}
+            key={item.id}
+            className="cursor-pointer border-b border-white/5 transition-colors hover:bg-white/5"
+            onClick={() => router.push(href)}
+            role="button"
           >
             <td className="px-4 py-3">
               <span
@@ -50,22 +47,16 @@ export function NewsletterTable({
               </span>
             </td>
             <td className="px-4 py-3 text-hot-white">
-              {href ? (
-                <Link
-                  href={href}
-                  className="block font-medium hover:underline"
-                  onClick={(e) => e.stopPropagation()}
-                >
-                  {item.subject ?? "Untitled"}
-                </Link>
-              ) : (
-                <span>{item.subject ?? "Untitled"}</span>
-              )}
+              <Link
+                href={href}
+                className="block font-medium hover:underline"
+                onClick={(e) => e.stopPropagation()}
+              >
+                {item.subject ?? "Untitled"}
+              </Link>
             </td>
             <td className="px-4 py-3 text-gray-400">
-              {item.publishedAt
-                ? format(new Date(item.publishedAt), "MMM d, yyyy")
-                : "—"}
+              {date ? format(new Date(date), "MMM d, yyyy") : "—"}
             </td>
           </tr>
         );

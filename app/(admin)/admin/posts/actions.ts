@@ -1,0 +1,193 @@
+"use server";
+
+import { createClient } from "@/utils/supabase/server";
+
+const BUCKET = "post-images";
+
+export async function uploadPostImage(
+  formData: FormData
+): Promise<{ url?: string; error?: string }> {
+  const file = formData.get("file") as File | null;
+  if (!file || !file.size) {
+    return { error: "No file provided." };
+  }
+
+  const supabaseServer = await createClient();
+  const {
+    data: { user },
+  } = await supabaseServer.auth.getUser();
+  if (!user) {
+    return { error: "Unauthorized." };
+  }
+
+  const ext = file.name.split(".").pop() || "jpg";
+  const path = `${user.id}/${Date.now()}.${ext}`;
+
+  const { error: uploadError } = await supabaseServer.storage
+    .from(BUCKET)
+    .upload(path, file, { upsert: false });
+
+  if (uploadError) {
+    console.error("[uploadPostImage]", uploadError);
+    return { error: uploadError.message };
+  }
+
+  const {
+    data: { publicUrl },
+  } = supabaseServer.storage.from(BUCKET).getPublicUrl(path);
+  return { url: publicUrl };
+}
+
+export type PostRow = {
+  id: string;
+  title: string | null;
+  slug: string | null;
+  excerpt: string | null;
+  body: string | null;
+  featured_image: string | null;
+  status: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+};
+
+export async function getPosts(): Promise<PostRow[]> {
+  const client = await createClient();
+  const { data, error } = await client
+    .from("posts")
+    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at")
+    .order("created_at", { ascending: false });
+
+  if (error) {
+    console.error("[getPosts]", error);
+    return [];
+  }
+  return (data ?? []).map((row: Record<string, unknown>) => {
+    const { content, main_image, ...rest } = row;
+    return {
+      ...rest,
+      body: content != null ? String(content) : null,
+      featured_image: main_image != null ? String(main_image) : null,
+    } as PostRow;
+  });
+}
+
+export async function getPostById(id: string): Promise<PostRow | null> {
+  const client = await createClient();
+  const { data, error } = await client
+    .from("posts")
+    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[getPostById]", error);
+    return null;
+  }
+  if (!data) return null;
+  return {
+    ...data,
+    body: data.content != null ? String(data.content) : null,
+    featured_image: data.main_image != null ? String(data.main_image) : null,
+  } as PostRow;
+}
+
+export async function createPost(formData: FormData): Promise<{ id?: string; error?: string }> {
+  const supabaseServer = await createClient();
+  const {
+    data: { user },
+  } = await supabaseServer.auth.getUser();
+  if (!user) {
+    return { error: "Unauthorized." };
+  }
+
+  const title = (formData.get("title") as string)?.trim() ?? "";
+  const slug = (formData.get("slug") as string)?.trim() ?? "";
+  const excerpt = (formData.get("excerpt") as string)?.trim() ?? "";
+  const body = (formData.get("body") as string) ?? "";
+  const featured_image = (formData.get("featured_image") as string) || null;
+  const status = (formData.get("status") as string) || "draft";
+
+  if (!title) {
+    return { error: "Title is required." };
+  }
+
+  const client = await createClient();
+  const { data, error } = await client
+    .from("posts")
+    .insert({
+      title,
+      slug: slug || null,
+      excerpt: excerpt || null,
+      content: body || null,
+      main_image: featured_image,
+      status,
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    })
+    .select("id")
+    .single();
+
+  if (error) {
+    console.error("[createPost]", error);
+    return { error: error.message };
+  }
+  return { id: data?.id };
+}
+
+export async function updatePost(
+  id: string,
+  formData: FormData
+): Promise<{ error?: string }> {
+  const supabaseServer = await createClient();
+  const {
+    data: { user },
+  } = await supabaseServer.auth.getUser();
+  if (!user) {
+    return { error: "Unauthorized." };
+  }
+
+  const title = (formData.get("title") as string)?.trim();
+  const slug = (formData.get("slug") as string)?.trim();
+  const excerpt = (formData.get("excerpt") as string)?.trim();
+  const body = formData.get("body") as string;
+  const featured_image = (formData.get("featured_image") as string) || null;
+  const status = (formData.get("status") as string) || "draft";
+
+  const payload: Record<string, unknown> = {
+    updated_at: new Date().toISOString(),
+    status,
+    main_image: featured_image,
+    content: body ?? null,
+    excerpt: excerpt ?? null,
+    slug: slug ?? null,
+    title: title ?? undefined,
+  };
+
+  const client = await createClient();
+  const { error } = await client.from("posts").update(payload).eq("id", id);
+
+  if (error) {
+    console.error("[updatePost]", error);
+    return { error: error.message };
+  }
+  return {};
+}
+
+export async function deletePost(id: string): Promise<{ error?: string }> {
+  const supabaseServer = await createClient();
+  const {
+    data: { user },
+  } = await supabaseServer.auth.getUser();
+  if (!user) {
+    return { error: "Unauthorized." };
+  }
+
+  const client = await createClient();
+  const { error } = await client.from("posts").delete().eq("id", id);
+
+  if (error) {
+    console.error("[deletePost]", error);
+    return { error: error.message };
+  }
+  return {};
+}
