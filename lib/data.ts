@@ -219,16 +219,18 @@ export async function getPost(slug: string): Promise<SanityPost | null> {
 }
 
 const SANITY_NEWSLETTER_BY_SLUG_QUERY = `*[_type == "newsletter" && slug.current == $slug][0] {
-  _id,
-  subject,
+  ...,
   "slug": slug.current,
-  publishedAt,
-  previewText,
   body[] {
-    _key,
-    _type,
     ...,
-    "post": _type == "reference" => @-> { title, "slug": slug.current, mainImage, excerpt }
+    _type == 'reference' => {
+      "post": @->{
+        title,
+        "slug": slug.current,
+        mainImage,
+        excerpt
+      }
+    }
   }
 }`;
 
