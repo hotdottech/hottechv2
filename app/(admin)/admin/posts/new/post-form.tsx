@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { TiptapEditor } from "@/components/editor/tiptap-editor";
 import { createPost, uploadPostImage } from "../actions";
+import { compressImage } from "@/lib/image-compression";
 import { cn } from "@/lib/utils";
 
 export function PostForm() {
@@ -34,8 +35,9 @@ export function PostForm() {
   async function handleFeaturedChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
+    const compressed = await compressImage(file);
     const formData = new FormData();
-    formData.set("file", file);
+    formData.set("file", compressed);
     const result = await uploadPostImage(formData);
     e.target.value = "";
     if (result.url) setFeaturedImageUrl(result.url);

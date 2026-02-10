@@ -11,6 +11,7 @@ const nextConfig: NextConfig = {
       { protocol: "https", hostname: "profile-images.authory.com" }, // Authory assets
       { protocol: "https", hostname: "images-production.authory.com" },
       { protocol: "https", hostname: "cdn.sanity.io" },
+      { protocol: "https", hostname: "guncxuxcmziyiljzieaw.supabase.co" },
     ],
     dangerouslyAllowSVG: true, // Needed for some placeholders
   },

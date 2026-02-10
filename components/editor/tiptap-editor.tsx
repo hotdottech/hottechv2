@@ -8,6 +8,7 @@ import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import { Bold, Italic, List, ListOrdered, Heading1, Heading2, Heading3, Link2, ImageIcon } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { compressImage } from "@/lib/image-compression";
 import { uploadPostImage } from "@/app/(admin)/admin/posts/actions";
 
 const ToolbarButton = ({
@@ -88,8 +89,9 @@ export function TiptapEditor({
     async (e: React.ChangeEvent<HTMLInputElement>) => {
       const file = e.target.files?.[0];
       if (!file || !editor) return;
+      const compressed = await compressImage(file);
       const formData = new FormData();
-      formData.set("file", file);
+      formData.set("file", compressed);
       const result = await uploadPostImage(formData);
       e.target.value = "";
       if (result.url) {

@@ -4,7 +4,6 @@ import {
   Container,
   Section,
   Text,
-  Img,
   Link,
   Hr,
   Head,
@@ -13,28 +12,11 @@ import {
 
 const DEFAULT_BASE_URL = "https://hot.tech";
 
-export type EmailBodyBlock =
-  | { type: "block"; paragraphs: string[] }
-  | {
-      type: "reference";
-      title: string;
-      slug: string;
-      excerpt: string | null;
-      imageUrl: string | null;
-    }
-  | {
-      type: "externalLink";
-      title: string;
-      url: string;
-      description: string | null;
-      imageUrl: string | null;
-    }
-  | { type: "sectionHeader"; title: string };
-
 export interface WeeklyNewsletterProps {
   subject: string;
   previewText: string;
-  body: EmailBodyBlock[];
+  /** Raw HTML string from Tiptap editor. */
+  content: string;
   slug: string;
   /** Subscriber email for the unsubscribe link (passed by send API per recipient). */
   email: string;
@@ -54,7 +36,7 @@ const styles = {
 export function WeeklyNewsletter({
   subject,
   previewText,
-  body,
+  content,
   slug,
   email,
   baseUrl = DEFAULT_BASE_URL,
@@ -64,7 +46,13 @@ export function WeeklyNewsletter({
 
   return (
     <Html lang="en">
-      <Head />
+      <Head>
+        <style>{`
+          .newsletter-body p { margin: 0 0 1em 0; color: #9ca3af; font-size: 16px; line-height: 1.6; }
+          .newsletter-body h1, .newsletter-body h2 { color: #ffffff; font-size: 20px; margin: 1em 0 0.5em 0; }
+          .newsletter-body img { max-width: 100%; height: auto; display: block; }
+        `}</style>
+      </Head>
       <Preview>{previewText || subject}</Preview>
       <Section style={{ backgroundColor: styles.dark.backgroundColor, padding: "24px 0" }}>
         <Container style={{ maxWidth: "600px", margin: "0 auto" }}>
@@ -82,166 +70,17 @@ export function WeeklyNewsletter({
             </Text>
           </Section>
 
-          {/* Body blocks */}
-          <Section style={{ padding: "0 24px" }}>
-            {body.map((block, index) => {
-              if (block.type === "block") {
-                return (
-                  <Section key={index} style={{ marginBottom: "20px" }}>
-                    {block.paragraphs.map((p, i) => (
-                      <Text
-                        key={i}
-                        style={{
-                          color: styles.dark.muted,
-                          fontSize: "16px",
-                          lineHeight: "1.6",
-                          margin: "0 0 12px 0",
-                        }}
-                      >
-                        {p}
-                      </Text>
-                    ))}
-                  </Section>
-                );
-              }
-
-              if (block.type === "sectionHeader") {
-                return (
-                  <Section key={index} style={{ marginTop: "28px", marginBottom: "12px" }}>
-                    <Text
-                      style={{
-                        color: styles.dark.color,
-                        fontSize: "20px",
-                        fontWeight: 600,
-                        margin: "0 0 8px 0",
-                      }}
-                    >
-                      {block.title}
-                    </Text>
-                    <Hr style={{ borderColor: "rgba(255,255,255,0.1)", margin: 0 }} />
-                  </Section>
-                );
-              }
-
-              if (block.type === "reference") {
-                const href = `${BASE_URL}/${block.slug}`;
-                return (
-                  <Section
-                    key={index}
-                    style={{
-                      marginBottom: "20px",
-                      padding: "16px",
-                      border: styles.dark.border,
-                      borderRadius: "8px",
-                    }}
-                  >
-                    <Link href={href} style={{ textDecoration: "none", color: "inherit" }}>
-                      <table width="100%" cellPadding={0} cellSpacing={0} style={{ borderCollapse: "collapse" }}>
-                        <tbody>
-                          <tr>
-                            {block.imageUrl && (
-                              <td style={{ width: "128px", verticalAlign: "top", paddingRight: "16px" }}>
-                                <Img
-                                  src={block.imageUrl}
-                                  alt=""
-                                  width={128}
-                                  height={96}
-                                  style={{ borderRadius: "6px", display: "block", objectFit: "cover" }}
-                                />
-                              </td>
-                            )}
-                            <td style={{ verticalAlign: "top" }}>
-                              <Text
-                                style={{
-                                  color: styles.dark.color,
-                                  fontSize: "16px",
-                                  fontWeight: 600,
-                                  margin: "0 0 4px 0",
-                                }}
-                              >
-                                {block.title || "Untitled"}
-                              </Text>
-                              {block.excerpt && (
-                                <Text
-                                  style={{
-                                    color: styles.dark.muted,
-                                    fontSize: "14px",
-                                    lineHeight: "1.4",
-                                    margin: 0,
-                                  }}
-                                >
-                                  {block.excerpt}
-                                </Text>
-                              )}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </Link>
-                  </Section>
-                );
-              }
-
-              if (block.type === "externalLink") {
-                return (
-                  <Section
-                    key={index}
-                    style={{
-                      marginBottom: "20px",
-                      padding: "16px",
-                      border: styles.dark.border,
-                      borderRadius: "8px",
-                    }}
-                  >
-                    <Link href={block.url} style={{ textDecoration: "none", color: "inherit" }}>
-                      <table width="100%" cellPadding={0} cellSpacing={0} style={{ borderCollapse: "collapse" }}>
-                        <tbody>
-                          <tr>
-                            {block.imageUrl && (
-                              <td style={{ width: "128px", verticalAlign: "top", paddingRight: "16px" }}>
-                                <Img
-                                  src={block.imageUrl}
-                                  alt=""
-                                  width={128}
-                                  height={96}
-                                  style={{ borderRadius: "6px", display: "block", objectFit: "cover" }}
-                                />
-                              </td>
-                            )}
-                            <td style={{ verticalAlign: "top" }}>
-                              <Text
-                                style={{
-                                  color: styles.dark.color,
-                                  fontSize: "16px",
-                                  fontWeight: 600,
-                                  margin: "0 0 4px 0",
-                                }}
-                              >
-                                {block.title || "Link"}
-                              </Text>
-                              {block.description && (
-                                <Text
-                                  style={{
-                                    color: styles.dark.muted,
-                                    fontSize: "14px",
-                                    lineHeight: "1.4",
-                                    margin: 0,
-                                  }}
-                                >
-                                  {block.description}
-                                </Text>
-                              )}
-                            </td>
-                          </tr>
-                        </tbody>
-                      </table>
-                    </Link>
-                  </Section>
-                );
-              }
-
-              return null;
-            })}
+          {/* Body: raw HTML from Tiptap (p, h1, img styled via .newsletter-body in Head) */}
+          <Section style={{ padding: "40px 24px" }} className="px-10 py-5">
+            <div
+              className="newsletter-body"
+              style={{
+                color: styles.dark.muted,
+                fontSize: "16px",
+                lineHeight: "1.6",
+              }}
+              dangerouslySetInnerHTML={{ __html: content || "" }}
+            />
           </Section>
 
           {/* Footer */}

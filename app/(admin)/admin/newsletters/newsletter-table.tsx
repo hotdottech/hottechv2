@@ -25,9 +25,9 @@ export function NewsletterTable({
   return (
     <>
       {newsletters.map((item) => {
-        const status = item.status === "sent" || item.published_at != null ? "Sent" : "Draft";
+        const status = item.status === "sent" ? "Sent" : "Draft";
         const href = `/admin/newsletters/${item.id}`;
-        const date = item.updated_at ?? item.created_at;
+        const date = item.date;
         return (
           <tr
             key={item.id}

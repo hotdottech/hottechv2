@@ -1,7 +1,8 @@
 "use server";
 
 import { createClient } from "@/utils/supabase/server";
-import { supabase } from "@/lib/supabase";
+import { Resend } from "resend";
+import { WeeklyNewsletter } from "@/emails/WeeklyNewsletter";
 
 export type NewsletterRow = {
   id: string;
@@ -12,7 +13,9 @@ export type NewsletterRow = {
   status: string | null;
   created_at: string | null;
   updated_at: string | null;
-  published_at: string | null;
+  sent_at: string | null;
+  /** Display date: sent_at when status is 'sent', otherwise created_at. */
+  date: string | null;
 };
 
 export async function getStats(): Promise<{ count: number }> {
@@ -33,21 +36,25 @@ export async function getNewsletters(): Promise<NewsletterRow[]> {
   const client = await createClient();
   const { data, error } = await client
     .from("newsletters")
-    .select("id, subject, slug, preview_text, content, status, created_at, updated_at, published_at")
+    .select("id, subject, slug, preview_text, content, status, created_at, updated_at, sent_at")
     .order("created_at", { ascending: false });
 
   if (error) {
     console.error("[getNewsletters]", error);
     return [];
   }
-  return (data ?? []) as NewsletterRow[];
+  const rows = (data ?? []) as Omit<NewsletterRow, "date">[];
+  return rows.map((row) => ({
+    ...row,
+    date: row.status === "sent" && row.sent_at ? row.sent_at : row.created_at,
+  }));
 }
 
 export async function getNewsletterById(id: string): Promise<NewsletterRow | null> {
   const client = await createClient();
   const { data, error } = await client
     .from("newsletters")
-    .select("id, subject, slug, preview_text, content, status, created_at, updated_at, published_at")
+    .select("id, subject, slug, preview_text, content, status, created_at, updated_at, sent_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -55,7 +62,32 @@ export async function getNewsletterById(id: string): Promise<NewsletterRow | nul
     console.error("[getNewsletterById]", error);
     return null;
   }
-  return data as NewsletterRow | null;
+  if (!data) return null;
+  const row = data as Omit<NewsletterRow, "date">;
+  return {
+    ...row,
+    date: row.status === "sent" && row.sent_at ? row.sent_at : row.created_at,
+  };
+}
+
+export async function getNewsletterBySlug(slug: string): Promise<NewsletterRow | null> {
+  const client = await createClient();
+  const { data, error } = await client
+    .from("newsletters")
+    .select("id, subject, slug, preview_text, content, status, created_at, updated_at, sent_at")
+    .eq("slug", slug)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[getNewsletterBySlug]", error);
+    return null;
+  }
+  if (!data) return null;
+  const row = data as Omit<NewsletterRow, "date">;
+  return {
+    ...row,
+    date: row.status === "sent" && row.sent_at ? row.sent_at : row.created_at,
+  };
 }
 
 export async function createNewsletter(formData: FormData): Promise<{ id?: string; error?: string }> {
@@ -122,14 +154,107 @@ export async function updateNewsletter(id: string, formData: FormData): Promise<
   return {};
 }
 
-// Send logic commented out for now – rebuild later with Supabase + HTML email
-export async function sendTestEmail(
-  _slug: string,
-  _email: string
-): Promise<{ error?: string }> {
-  return { error: "Send test is disabled for now. Save drafts only." };
+const resend = new Resend(process.env.RESEND_API_KEY);
+const FROM_EMAIL = process.env.RESEND_FROM ?? "House Of Tech <newsletter@emails.hot.tech>";
+const BASE_URL = process.env.NEXT_PUBLIC_APP_URL ?? "https://hot.tech";
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+function getNewsletterBySlugOrId(slugOrId: string): Promise<NewsletterRow | null> {
+  return UUID_REGEX.test(slugOrId) ? getNewsletterById(slugOrId) : getNewsletterBySlug(slugOrId);
 }
 
-export async function broadcastNewsletter(_slug: string): Promise<{ error?: string; count?: number }> {
-  return { error: "Broadcast is disabled for now. Save drafts only." };
+export async function sendTestEmail(
+  slug: string,
+  email: string
+): Promise<{ error?: string }> {
+  const client = await createClient();
+  const { data: { user } } = await client.auth.getUser();
+  if (!user) return { error: "Unauthorized." };
+
+  const newsletter = await getNewsletterBySlugOrId(slug);
+  if (!newsletter) return { error: "Newsletter not found." };
+
+  if (!process.env.RESEND_API_KEY) return { error: "RESEND_API_KEY is not set." };
+
+  const subject = newsletter.subject ?? "Newsletter";
+  const slugVal = newsletter.slug ?? newsletter.id;
+
+  const { error } = await resend.emails.send({
+    from: FROM_EMAIL,
+    to: [email.trim()],
+    subject: `[TEST] ${subject}`,
+    react: WeeklyNewsletter({
+      subject,
+      previewText: newsletter.preview_text ?? subject,
+      content: newsletter.content ?? "",
+      slug: slugVal,
+      email: email.trim(),
+      baseUrl: BASE_URL,
+    }),
+  });
+
+  if (error) {
+    console.error("[sendTestEmail]", error);
+    return { error: error.message };
+  }
+  return {};
+}
+
+export async function broadcastNewsletter(slug: string): Promise<{ error?: string; count?: number }> {
+  const client = await createClient();
+  const { data: { user } } = await client.auth.getUser();
+  if (!user) return { error: "Unauthorized." };
+
+  const newsletter = await getNewsletterBySlugOrId(slug);
+  if (!newsletter) return { error: "Newsletter not found." };
+
+  const { data: subscribers, error: subsError } = await client
+    .from("subscribers")
+    .select("email")
+    .eq("status", "active");
+
+  if (subsError) {
+    console.error("[broadcastNewsletter] subscribers", subsError);
+    return { error: "Failed to load subscribers." };
+  }
+  const emails = (subscribers ?? []).map((r) => (r as { email: string }).email).filter(Boolean);
+  if (emails.length === 0) return { error: "No active subscribers." };
+
+  if (!process.env.RESEND_API_KEY) return { error: "RESEND_API_KEY is not set." };
+
+  const subject = newsletter.subject ?? "Newsletter";
+  const slugVal = newsletter.slug ?? newsletter.id;
+
+  for (const to of emails) {
+    const { error } = await resend.emails.send({
+      from: FROM_EMAIL,
+      to: [to],
+      subject,
+      react: WeeklyNewsletter({
+        subject,
+        previewText: newsletter.preview_text ?? subject,
+        content: newsletter.content ?? "",
+        slug: slugVal,
+        email: to,
+        baseUrl: BASE_URL,
+      }),
+    });
+    if (error) {
+      console.error("[broadcastNewsletter]", error);
+      return { error: `Failed to send to ${to}: ${error.message}`, count: 0 };
+    }
+  }
+
+  const sentAt = new Date().toISOString();
+  const { error: updateError } = await client
+    .from("newsletters")
+    .update({ status: "sent", sent_at: sentAt, updated_at: sentAt })
+    .eq("id", newsletter.id);
+
+  if (updateError) {
+    console.error("[broadcastNewsletter] update status", updateError);
+    return { error: "Emails sent but status update failed.", count: emails.length };
+  }
+
+  return { count: emails.length };
 }

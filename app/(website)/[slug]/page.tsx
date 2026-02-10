@@ -57,8 +57,10 @@ export default async function ArticlePage({ params }: PageProps) {
       )}
 
       <div
-        className="prose prose-invert mx-auto max-w-2xl max-w-none"
-        dangerouslySetInnerHTML={{ __html: post.body ?? "" }}
+        className="prose prose-lg prose-invert mx-auto max-w-2xl max-w-none"
+        dangerouslySetInnerHTML={{
+          __html: (post as { content?: string; body?: string }).content || post.body || "",
+        }}
       />
     </article>
   );
