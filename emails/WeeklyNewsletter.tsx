@@ -11,7 +11,7 @@ import {
   Preview,
 } from "@react-email/components";
 
-const BASE_URL = "https://hot.tech";
+const DEFAULT_BASE_URL = "https://hot.tech";
 
 export type EmailBodyBlock =
   | { type: "block"; paragraphs: string[] }
@@ -36,6 +36,10 @@ export interface WeeklyNewsletterProps {
   previewText: string;
   body: EmailBodyBlock[];
   slug: string;
+  /** Subscriber email for the unsubscribe link (passed by send API per recipient). */
+  email: string;
+  /** Base URL for links (e.g. https://hot.tech). Passed from server so env is available. */
+  baseUrl?: string;
 }
 
 const styles = {
@@ -52,9 +56,11 @@ export function WeeklyNewsletter({
   previewText,
   body,
   slug,
+  email,
+  baseUrl = DEFAULT_BASE_URL,
 }: WeeklyNewsletterProps) {
-  const viewInBrowserUrl = `${BASE_URL}/newsletters/${slug}`;
-  const unsubscribeUrl = `${BASE_URL}/newsletters/unsubscribe`; // placeholder
+  const viewInBrowserUrl = `${baseUrl}/newsletters/${slug}`;
+  const unsubscribeUrl = `${baseUrl}/api/newsletter/unsubscribe?email=${encodeURIComponent(email)}`;
 
   return (
     <Html lang="en">
@@ -64,7 +70,7 @@ export function WeeklyNewsletter({
         <Container style={{ maxWidth: "600px", margin: "0 auto" }}>
           {/* Header */}
           <Section style={{ padding: "0 24px 24px" }}>
-            <Link href={BASE_URL} style={{ color: styles.dark.color, textDecoration: "none", fontSize: "20px", fontWeight: 600 }}>
+            <Link href={baseUrl} style={{ color: styles.dark.color, textDecoration: "none", fontSize: "20px", fontWeight: 600 }}>
               Hot Tech
             </Link>
           </Section>

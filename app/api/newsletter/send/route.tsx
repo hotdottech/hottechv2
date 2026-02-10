@@ -117,6 +117,8 @@ export async function POST(request: Request) {
           previewText={previewText}
           body={emailBody}
           slug={slug}
+          email={to}
+          baseUrl={process.env.NEXT_PUBLIC_URL ?? "https://hot.tech"}
         />
       ),
     });
