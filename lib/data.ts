@@ -249,6 +249,30 @@ export type SanityNewsletter = {
   body: NewsletterBodyBlock[] | null;
 };
 
+const SANITY_NEWSLETTERS_LIST_QUERY = `*[_type == "newsletter"] | order(publishedAt desc) {
+  _id,
+  subject,
+  "slug": slug.current,
+  publishedAt
+}`;
+
+export type SanityNewsletterListItem = {
+  _id: string;
+  subject: string | null;
+  slug: string | null;
+  publishedAt: string | null;
+};
+
+export async function getNewsletters(): Promise<SanityNewsletterListItem[]> {
+  try {
+    const docs = await client.fetch<SanityNewsletterListItem[]>(SANITY_NEWSLETTERS_LIST_QUERY);
+    return Array.isArray(docs) ? docs : [];
+  } catch (err) {
+    console.error("[getNewsletters]", err);
+    return [];
+  }
+}
+
 export async function getNewsletter(slug: string): Promise<SanityNewsletter | null> {
   try {
     const doc = await client.fetch<SanityNewsletter | null>(SANITY_NEWSLETTER_BY_SLUG_QUERY, { slug });
