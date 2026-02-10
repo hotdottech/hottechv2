@@ -1,6 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
+import { NewsletterInput } from "./newsletter-input";
 
 export function Hero() {
   return (
@@ -32,6 +33,7 @@ export function Hero() {
           >
             Seen in: Forbes, TechRadar, Android Central
           </motion.p>
+          <NewsletterInput />
         </div>
 
         {/* Right: Portrait placeholder - fade + scale */}
