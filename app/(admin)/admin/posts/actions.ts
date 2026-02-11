@@ -134,10 +134,27 @@ export async function createPost(formData: FormData): Promise<{ id?: string; err
   const body = (formData.get("body") as string) ?? "";
   const featured_image = (formData.get("featured_image") as string) || null;
   const status = (formData.get("status") as string) || "draft";
+  const published_at = (formData.get("published_at") as string) || null;
+  const source_name = (formData.get("source_name") as string)?.trim() || null;
+  const original_url = (formData.get("original_url") as string)?.trim() || null;
+  const meta_title = (formData.get("meta_title") as string)?.trim() || null;
+  const meta_description = (formData.get("meta_description") as string)?.trim() || null;
+  const canonical_url = (formData.get("canonical_url") as string)?.trim() || null;
+  const categoryIds = (formData.getAll("category_ids") as string[]).map((s) => parseInt(s, 10)).filter((n) => !Number.isNaN(n));
+  const tagIds = (formData.getAll("tag_ids") as string[]).map((s) => parseInt(s, 10)).filter((n) => !Number.isNaN(n));
+  const contentTypeIdRaw = formData.get("content_type_id");
+  const contentTypeId =
+    contentTypeIdRaw != null && String(contentTypeIdRaw).trim() !== ""
+      ? parseInt(String(contentTypeIdRaw), 10)
+      : null;
+  const contentTypeIdValid = contentTypeId != null && !Number.isNaN(contentTypeId) ? contentTypeId : null;
 
   if (!title) {
     return { error: "Title is required." };
   }
+
+  const now = new Date().toISOString();
+  const publishedAt = published_at ? new Date(published_at).toISOString() : now;
 
   const client = await createClient();
   const { data, error } = await client
@@ -149,8 +166,14 @@ export async function createPost(formData: FormData): Promise<{ id?: string; err
       content: body || null,
       main_image: featured_image,
       status,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      published_at: publishedAt,
+      created_at: now,
+      updated_at: now,
+      source_name,
+      original_url,
+      meta_title,
+      meta_description,
+      canonical_url,
     })
     .select("id")
     .single();
@@ -159,7 +182,21 @@ export async function createPost(formData: FormData): Promise<{ id?: string; err
     console.error("[createPost]", error);
     return { error: error.message };
   }
-  return { id: data?.id };
+
+  const postId = (data as { id: string } | null)?.id;
+  if (postId) {
+    if (categoryIds.length > 0) {
+      await client.from("post_categories").insert(categoryIds.map((category_id) => ({ post_id: postId, category_id })));
+    }
+    if (tagIds.length > 0) {
+      await client.from("post_tags").insert(tagIds.map((tag_id) => ({ post_id: postId, tag_id })));
+    }
+    if (contentTypeIdValid != null) {
+      await client.from("post_content_types").insert({ post_id: postId, content_type_id: contentTypeIdValid });
+    }
+  }
+
+  return { id: postId };
 }
 
 export async function updatePost(

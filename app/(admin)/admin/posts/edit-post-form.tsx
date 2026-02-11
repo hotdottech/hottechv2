@@ -3,7 +3,7 @@
 import { useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { TiptapEditor } from "@/components/editor/tiptap-editor";
-import { updatePost, uploadPostImage, type PostRow } from "./actions";
+import { updatePost, createPost, uploadPostImage, type PostRow } from "./actions";
 import { createTag } from "@/lib/actions/tags";
 import { compressImage } from "@/lib/image-compression";
 import type { CategoryRow } from "@/lib/actions/categories";
@@ -42,7 +42,7 @@ function buildCategoryRows(categories: CategoryRow[]): { category: CategoryRow; 
 }
 
 type EditPostFormProps = {
-  post: PostRow;
+  post: PostRow | null;
   categories: CategoryRow[];
   tags: TagRow[];
   contentTypes: ContentTypeRow[];
@@ -61,21 +61,21 @@ export function EditPostForm({
   initialContentTypeId,
 }: EditPostFormProps) {
   const router = useRouter();
-  const [title, setTitle] = useState(post.title ?? "");
-  const [slug, setSlug] = useState(post.slug ?? "");
-  const [excerpt, setExcerpt] = useState(post.excerpt ?? "");
-  const [body, setBody] = useState(post.body ?? "");
+  const [title, setTitle] = useState(post?.title ?? "");
+  const [slug, setSlug] = useState(post?.slug ?? "");
+  const [excerpt, setExcerpt] = useState(post?.excerpt ?? "");
+  const [body, setBody] = useState(post?.body ?? "");
   const [status, setStatus] = useState<"draft" | "published">(
-    (post.status as "draft" | "published") || "draft"
+    (post?.status as "draft" | "published") || "draft"
   );
-  const [publishedAt, setPublishedAt] = useState(toDatetimeLocal(post.published_at));
-  const [sourceName, setSourceName] = useState(post.source_name ?? "");
-  const [originalUrl, setOriginalUrl] = useState(post.original_url ?? "");
-  const [metaTitle, setMetaTitle] = useState(post.meta_title ?? "");
-  const [metaDescription, setMetaDescription] = useState(post.meta_description ?? "");
-  const [canonicalUrl, setCanonicalUrl] = useState(post.canonical_url ?? "");
+  const [publishedAt, setPublishedAt] = useState(toDatetimeLocal(post?.published_at ?? null));
+  const [sourceName, setSourceName] = useState(post?.source_name ?? "");
+  const [originalUrl, setOriginalUrl] = useState(post?.original_url ?? "");
+  const [metaTitle, setMetaTitle] = useState(post?.meta_title ?? "");
+  const [metaDescription, setMetaDescription] = useState(post?.meta_description ?? "");
+  const [canonicalUrl, setCanonicalUrl] = useState(post?.canonical_url ?? "");
   const [featuredImageUrl, setFeaturedImageUrl] = useState<string | null>(
-    post.featured_image
+    post?.featured_image ?? null
   );
   const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<number>>(
     () => new Set(initialCategoryIds)
@@ -167,13 +167,24 @@ export function EditPostForm({
     selectedCategoryIds.forEach((id) => formData.append("category_ids", String(id)));
     finalTagIds.forEach((id) => formData.append("tag_ids", String(id)));
     if (selectedContentTypeId != null) formData.set("content_type_id", String(selectedContentTypeId));
-    const result = await updatePost(post.id, formData);
-    setSaving(false);
-    if (result.error) {
-      setError(result.error);
-      return;
+
+    if (post?.id) {
+      const result = await updatePost(post.id, formData);
+      setSaving(false);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      router.push("/admin/posts");
+    } else {
+      const result = await createPost(formData);
+      setSaving(false);
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      if (result.id) router.push(`/admin/posts/${result.id}`);
     }
-    router.push("/admin/posts");
   }
 
   return (
