@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { getPostBySlug, getPostPrimaryCategoryName } from "@/lib/data";
 import { constructMetadata } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { SocialEmbedEnhancer } from "@/components/posts/SocialEmbedEnhancer";
 import { getBaseUrl } from "@/lib/url";
 
 type PageProps = {
@@ -105,6 +106,7 @@ export default async function ArticlePage({ params }: PageProps) {
           __html: (post as { content?: string; body?: string }).content || post.body || "",
         }}
       />
+      <SocialEmbedEnhancer />
     </article>
     </>
   );

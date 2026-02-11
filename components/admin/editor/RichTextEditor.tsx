@@ -134,10 +134,16 @@ export function RichTextEditor({
 
   const handleSocialEmbed = useCallback(() => {
     if (!editor) return;
-    const url = window.prompt("Social URL (TikTok, Instagram, or X/Twitter):");
+    const url = window.prompt("Enter social URL (TikTok, Instagram, X):");
     if (!url || !url.trim()) return;
     const href = url.trim();
-    const { platform } = getSocialPlatform(href);
+    const platform = href.includes("tiktok")
+      ? "tiktok"
+      : href.includes("instagram")
+        ? "instagram"
+        : href.includes("twitter") || href.includes("x.com")
+          ? "x"
+          : "link";
     editor.chain().focus().setSocialCard({ platform, url: href }).run();
   }, [editor]);
 

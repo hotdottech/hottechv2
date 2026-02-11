@@ -38,3 +38,10 @@ body {
   height: 0;
   pointer-events: none;
 }
+
+/* Social / oEmbed iframes: responsive */
+.tiktok-embed iframe,
+.instagram-media iframe,
+.twitter-tweet iframe {
+  max-width: 100% !important;
+}
