@@ -447,14 +447,15 @@ export type SupabasePost = {
   showcase_data?: unknown[];
   /** Display options (e.g. hide_header). */
   display_options?: Record<string, unknown>;
+  /** Author user id (for draft preview access). */
+  user_id?: string | null;
 };
 
 export async function getPostBySlug(slug: string): Promise<SupabasePost | null> {
   const { data, error } = await supabase
     .from("posts")
-    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at, published_at, source_name, showcase_data, display_options")
+    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at, published_at, source_name, showcase_data, display_options, user_id")
     .eq("slug", slug)
-    .eq("status", "published")
     .maybeSingle();
 
   if (error) {
@@ -487,6 +488,7 @@ export async function getPostBySlug(slug: string): Promise<SupabasePost | null> 
     content_type_slug,
     showcase_data: Array.isArray(showcaseData) ? showcaseData : [],
     display_options: displayOptions != null && typeof displayOptions === "object" && !Array.isArray(displayOptions) ? (displayOptions as Record<string, unknown>) : {},
+    user_id: data.user_id != null ? String(data.user_id) : null,
   } as SupabasePost;
 }
 

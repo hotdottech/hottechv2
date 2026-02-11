@@ -222,8 +222,7 @@ export async function createPost(formData: FormData): Promise<{ id?: string; err
   const now = new Date().toISOString();
   const publishedAt = published_at ? new Date(published_at).toISOString() : now;
 
-  const client = await createClient();
-  const { data, error } = await client
+  const { data, error } = await supabaseServer
     .from("posts")
     .insert({
       title,
@@ -242,6 +241,7 @@ export async function createPost(formData: FormData): Promise<{ id?: string; err
       canonical_url,
       showcase_data: showcaseData,
       display_options: displayOptions,
+      user_id: user.id,
     })
     .select("id")
     .single();
@@ -254,13 +254,13 @@ export async function createPost(formData: FormData): Promise<{ id?: string; err
   const postId = (data as { id: string } | null)?.id;
   if (postId) {
     if (categoryIds.length > 0) {
-      await client.from("post_categories").insert(categoryIds.map((category_id) => ({ post_id: postId, category_id })));
+      await supabaseServer.from("post_categories").insert(categoryIds.map((category_id) => ({ post_id: postId, category_id })));
     }
     if (tagIds.length > 0) {
-      await client.from("post_tags").insert(tagIds.map((tag_id) => ({ post_id: postId, tag_id })));
+      await supabaseServer.from("post_tags").insert(tagIds.map((tag_id) => ({ post_id: postId, tag_id })));
     }
     if (contentTypeIdValid != null) {
-      await client.from("post_content_types").insert({ post_id: postId, content_type_id: contentTypeIdValid });
+      await supabaseServer.from("post_content_types").insert({ post_id: postId, content_type_id: contentTypeIdValid });
     }
   }
 

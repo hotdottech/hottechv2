@@ -7,9 +7,11 @@ import { ArrowLeft } from "lucide-react";
 import { getPostBySlug, getPostPrimaryCategoryName } from "@/lib/data";
 import { constructMetadata } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { PreviewBanner } from "@/components/posts/PreviewBanner";
 import { ShowcaseGrid } from "@/components/posts/ShowcaseGrid";
 import { SocialEmbedEnhancer } from "@/components/posts/SocialEmbedEnhancer";
 import { getBaseUrl } from "@/lib/url";
+import { createClient } from "@/utils/supabase/server";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
@@ -19,6 +21,7 @@ export async function generateMetadata({ params }: PageProps): Promise<Metadata>
   const { slug } = await params;
   const post = await getPostBySlug(slug);
   if (!post) return {};
+  if (post.status !== "published") return { title: "Preview" };
   const category = await getPostPrimaryCategoryName(post.id);
   return await constructMetadata({
     title: post.title ?? "Untitled",
@@ -39,6 +42,19 @@ export default async function ArticlePage({ params }: PageProps) {
     notFound();
   }
 
+  const isPublished = post.status === "published";
+  if (!isPublished) {
+    const supabase = await createClient();
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) notFound();
+    const isAuthor = post.user_id != null && post.user_id === user.id;
+    const isAdmin =
+      (user.app_metadata as { role?: string } | undefined)?.role === "admin" ||
+      (user.user_metadata as { role?: string } | undefined)?.role === "admin";
+    if (!isAuthor && !isAdmin) notFound();
+  }
+
+  const isDraftPreview = !isPublished;
   const date = post.updated_at ?? post.created_at;
   const baseUrl = getBaseUrl().replace(/\/$/, "");
   const articleUrl = post.slug ? `${baseUrl}/${post.slug}` : baseUrl;
@@ -68,7 +84,7 @@ export default async function ArticlePage({ params }: PageProps) {
   return (
     <>
       <JsonLd data={newsArticleSchema} />
-      <article className="mx-auto max-w-4xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
+      <article className={`mx-auto max-w-4xl px-4 pt-8 sm:px-6 lg:px-8 ${isDraftPreview ? "pb-24" : "pb-16"}`}>
       {!hideHeader && (
         <>
           <Link
@@ -125,6 +141,7 @@ export default async function ArticlePage({ params }: PageProps) {
         )}
       <SocialEmbedEnhancer />
     </article>
+    {isDraftPreview && <PreviewBanner />}
     </>
   );
 }

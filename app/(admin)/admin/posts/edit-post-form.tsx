@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { Eye } from "lucide-react";
 import { RichTextEditor } from "@/components/admin/editor/RichTextEditor";
 import { updatePost, createPost, type PostRow } from "./actions";
 import { createTag } from "@/lib/actions/tags";
@@ -419,6 +420,15 @@ export function EditPostForm({
                 Publish
               </button>
             </div>
+            <button
+              type="button"
+              onClick={() => window.open("/" + slug, "_blank")}
+              disabled={!slug?.trim()}
+              className="flex w-full items-center justify-center gap-2 rounded-md border border-white/20 bg-white/5 py-2 font-sans text-sm font-medium text-hot-white transition-colors hover:bg-white/10 disabled:opacity-50 disabled:pointer-events-none"
+            >
+              <Eye className="h-4 w-4" />
+              Preview
+            </button>
           </div>
         </SidebarSection>
 
