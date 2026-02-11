@@ -4,6 +4,14 @@ import { createClient } from "@/utils/supabase/server";
 
 const BUCKET = "post-images";
 
+function slugify(text: string): string {
+  return text
+    .toLowerCase()
+    .replace(/\s+/g, "-")
+    .replace(/[^\w-]+/g, "")
+    .trim();
+}
+
 export async function uploadPostImage(
   formData: FormData
 ): Promise<{ url?: string; error?: string }> {
@@ -165,7 +173,7 @@ export async function createPost(formData: FormData): Promise<{ id?: string; err
   }
 
   const title = (formData.get("title") as string)?.trim() ?? "";
-  const slug = (formData.get("slug") as string)?.trim() ?? "";
+  let slug = (formData.get("slug") as string)?.trim() ?? "";
   const excerpt = (formData.get("excerpt") as string)?.trim() ?? "";
   const body = (formData.get("body") as string) ?? "";
   const featured_image = (formData.get("featured_image") as string) || null;
@@ -187,6 +195,10 @@ export async function createPost(formData: FormData): Promise<{ id?: string; err
 
   if (!title) {
     return { error: "Title is required." };
+  }
+
+  if (!slug && title) {
+    slug = slugify(title);
   }
 
   const now = new Date().toISOString();
@@ -248,7 +260,7 @@ export async function updatePost(
   }
 
   const title = (formData.get("title") as string)?.trim();
-  const slug = (formData.get("slug") as string)?.trim();
+  let slug = (formData.get("slug") as string)?.trim();
   const excerpt = (formData.get("excerpt") as string)?.trim();
   const body = formData.get("body") as string;
   const featured_image = (formData.get("featured_image") as string) || null;
@@ -267,6 +279,10 @@ export async function updatePost(
       ? parseInt(String(contentTypeIdRaw), 10)
       : null;
   const contentTypeIdValid = contentTypeId != null && !Number.isNaN(contentTypeId) ? contentTypeId : null;
+
+  if (!slug && title) {
+    slug = slugify(title);
+  }
 
   const payload: Record<string, unknown> = {
     updated_at: new Date().toISOString(),

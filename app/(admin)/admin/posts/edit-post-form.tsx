@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { RichTextEditor } from "@/components/admin/editor/RichTextEditor";
 import { updatePost, createPost, type PostRow } from "./actions";
@@ -101,14 +101,47 @@ export function EditPostForm({
   function slugify(text: string) {
     return text
       .toLowerCase()
-      .replace(/[^\w\s-]/g, "")
       .replace(/\s+/g, "-")
-      .replace(/--+/g, "-")
+      .replace(/[^\w-]+/g, "")
       .trim();
+  }
+
+  const lastAutoSlugRef = useRef(slugify(post?.title ?? ""));
+  const [isSlugDirty, setSlugDirty] = useState(() => {
+    if (!post?.slug) return false;
+    return post.slug !== slugify(post.title ?? "");
+  });
+
+  useEffect(() => {
+    if (isSlugDirty) return;
+    const newAuto = slugify(title);
+    if (!title || (slug !== "" && slug !== lastAutoSlugRef.current)) return;
+    setSlug(newAuto);
+    lastAutoSlugRef.current = newAuto;
+  }, [title, isSlugDirty, slug]);
+
+  function handleTitleChange(value: string) {
+    setTitle(value);
+  }
+
+  function handleTitleBlur() {
+    if (isSlugDirty) return;
+    const newAuto = slugify(title);
+    if (slug === "" || slug === lastAutoSlugRef.current) {
+      setSlug(newAuto);
+      lastAutoSlugRef.current = newAuto;
+    }
+  }
+
+  function handleSlugChange(value: string) {
+    setSlug(value);
+    setSlugDirty(true);
   }
 
   function handleGenerateSlug() {
     setSlug(slugify(title));
+    lastAutoSlugRef.current = slugify(title);
+    setSlugDirty(false);
   }
 
   function toggleCategory(id: number) {
@@ -185,7 +218,8 @@ export function EditPostForm({
           <input
             type="text"
             value={title}
-            onChange={(e) => setTitle(e.target.value)}
+            onChange={(e) => handleTitleChange(e.target.value)}
+            onBlur={handleTitleBlur}
             placeholder="Post title"
             className="mt-2 w-full rounded-md border border-white/10 bg-hot-gray px-4 py-3 font-serif text-xl text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none focus:ring-1 focus:ring-hot-white/20"
           />
@@ -343,7 +377,7 @@ export function EditPostForm({
             <input
               type="text"
               value={slug}
-              onChange={(e) => setSlug(e.target.value)}
+              onChange={(e) => handleSlugChange(e.target.value)}
               placeholder="url-slug"
               className="flex-1 rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
             />

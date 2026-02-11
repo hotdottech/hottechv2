@@ -1,4 +1,4 @@
-import { Node } from "@tiptap/core";
+import { mergeAttributes, Node } from "@tiptap/core";
 
 export interface PostCardOptions {
   title: string;
@@ -54,7 +54,7 @@ export const PostCard = Node.create({
       url: {
         default: "",
         parseHTML: (element) =>
-          element.getAttribute("href") ?? element.getAttribute("data-url") ?? "",
+          element.getAttribute("data-url") ?? element.getAttribute("href") ?? "",
       },
       date: {
         default: "",
@@ -63,8 +63,12 @@ export const PostCard = Node.create({
     };
   },
 
+  addOptions() {
+    return { HTMLAttributes: {} };
+  },
+
   parseHTML() {
-    return [{ tag: 'a[data-type="post-card"]' }];
+    return [{ tag: 'div[data-type="post-card"]' }];
   },
 
   renderHTML({ node, HTMLAttributes }) {
@@ -79,34 +83,36 @@ export const PostCard = Node.create({
         : "https://placehold.co/600x200/1a1a1a/666?text=No+image";
     const safeUrl = url && String(url).trim() ? String(url) : "#";
 
+    const wrapperAttrs = mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
+      "data-type": "post-card",
+      "data-title": title,
+      "data-excerpt": excerpt,
+      "data-image": image,
+      "data-url": safeUrl,
+      "data-date": date,
+    });
+
     return [
-      "a",
-      {
-        ...HTMLAttributes,
-        href: safeUrl,
-        class: "content-card",
-        "data-type": "post-card",
-        "data-title": title,
-        "data-excerpt": excerpt,
-        "data-image": image,
-        "data-url": safeUrl,
-        "data-date": date,
-        style: containerStyle,
-      },
+      "div",
+      wrapperAttrs,
       [
-        "div",
-        {
-          style: `${imageStyle} background-image:url('${imgSrc}');`,
-          "data-card-image": "true",
-          "data-src": image,
-        },
-      ],
-      [
-        "div",
-        { style: contentStyle },
-        ["h3", { style: titleStyle }, title || "Untitled"],
-        ["p", { style: excerptStyle }, excerpt || ""],
-        ["span", { style: readMoreStyle }, "Read More →"],
+        "a",
+        { href: safeUrl, style: containerStyle },
+        [
+          "div",
+          {
+            style: `${imageStyle} background-image:url('${imgSrc}');`,
+            "data-card-image": "true",
+            "data-src": image,
+          },
+        ],
+        [
+          "div",
+          { style: contentStyle },
+          ["h3", { style: titleStyle }, title || "Untitled"],
+          ["p", { style: excerptStyle }, excerpt || ""],
+          ["span", { style: readMoreStyle }, "Read More →"],
+        ],
       ],
     ];
   },

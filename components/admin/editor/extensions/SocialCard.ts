@@ -1,4 +1,4 @@
-import { Node } from "@tiptap/core";
+import { mergeAttributes, Node } from "@tiptap/core";
 
 export type SocialPlatform = "tiktok" | "instagram" | "x" | "link" | "unknown";
 
@@ -72,8 +72,12 @@ export const SocialCard = Node.create({
     };
   },
 
+  addOptions() {
+    return { HTMLAttributes: {} };
+  },
+
   parseHTML() {
-    return [{ tag: 'a[data-type="social-card"]' }];
+    return [{ tag: 'div[data-type="social-card"]' }];
   },
 
   renderHTML({ node, HTMLAttributes }) {
@@ -83,19 +87,22 @@ export const SocialCard = Node.create({
     const label = getPlatformLabel(platform);
     const emoji = getPlatformEmoji(platform);
 
+    const wrapperAttrs = mergeAttributes(this.options.HTMLAttributes, HTMLAttributes, {
+      "data-type": "social-card",
+      "data-platform": platform,
+      "data-url": safeUrl,
+    });
+
     return [
-      "a",
-      {
-        ...HTMLAttributes,
-        href: safeUrl,
-        "data-type": "social-card",
-        "data-platform": platform,
-        "data-url": safeUrl,
-        style: containerStyle,
-      },
-      ["span", { style: "font-size:1.2em;" }, emoji],
-      ["span", { style: textStyle }, label],
-      ["span", { style: arrowStyle }, "→"],
+      "div",
+      wrapperAttrs,
+      [
+        "a",
+        { href: safeUrl, style: containerStyle },
+        ["span", { style: "font-size:1.2em;" }, emoji],
+        ["span", { style: textStyle }, label],
+        ["span", { style: arrowStyle }, "→"],
+      ],
     ];
   },
 
