@@ -1,6 +1,9 @@
 import { notFound } from "next/navigation";
 import Link from "next/link";
-import { getPostById } from "../actions";
+import { getPostById, getPostTaxonomies } from "../actions";
+import { getCategories } from "@/lib/actions/categories";
+import { getTags } from "@/lib/actions/tags";
+import { getContentTypes } from "@/lib/actions/content-types";
 import { EditPostForm } from "../edit-post-form";
 
 type PageProps = {
@@ -9,7 +12,13 @@ type PageProps = {
 
 export default async function EditPostPage({ params }: PageProps) {
   const { id } = await params;
-  const post = await getPostById(id);
+  const [post, taxonomies, categories, tags, contentTypes] = await Promise.all([
+    getPostById(id),
+    getPostTaxonomies(id),
+    getCategories(),
+    getTags(),
+    getContentTypes(),
+  ]);
 
   if (!post) {
     notFound();
@@ -28,7 +37,15 @@ export default async function EditPostPage({ params }: PageProps) {
       <h1 className="font-serif text-2xl font-bold text-hot-white">
         Edit Post
       </h1>
-      <EditPostForm post={post} />
+      <EditPostForm
+        post={post}
+        categories={categories}
+        tags={tags}
+        contentTypes={contentTypes}
+        initialCategoryIds={taxonomies.categoryIds}
+        initialTagIds={taxonomies.tagIds}
+        initialContentTypeId={taxonomies.contentTypeId}
+      />
     </div>
   );
 }

@@ -1,10 +1,16 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { useState, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { TiptapEditor } from "@/components/editor/tiptap-editor";
 import { updatePost, uploadPostImage, type PostRow } from "./actions";
+import { createTag } from "@/lib/actions/tags";
 import { compressImage } from "@/lib/image-compression";
+import type { CategoryRow } from "@/lib/actions/categories";
+import type { TagRow } from "@/lib/actions/tags";
+import type { ContentTypeRow } from "@/lib/actions/content-types";
+import { SidebarSection } from "@/app/components/admin/posts/SidebarSection";
+import { TagInput, type SelectedTag } from "@/app/components/admin/posts/TagInput";
 
 function toDatetimeLocal(iso: string | null): string {
   if (!iso) return "";
@@ -15,7 +21,45 @@ function toDatetimeLocal(iso: string | null): string {
   }
 }
 
-export function EditPostForm({ post }: { post: PostRow }) {
+function buildCategoryRows(categories: CategoryRow[]): { category: CategoryRow; depth: number }[] {
+  const byParent = new Map<number | null, CategoryRow[]>();
+  for (const c of categories) {
+    const key = c.parent_id ?? null;
+    if (!byParent.has(key)) byParent.set(key, []);
+    byParent.get(key)!.push(c);
+  }
+  const result: { category: CategoryRow; depth: number }[] = [];
+  function visit(parentId: number | null, depth: number) {
+    const list = byParent.get(parentId) ?? [];
+    list.sort((a, b) => (a.name ?? "").localeCompare(b.name ?? ""));
+    for (const c of list) {
+      result.push({ category: c, depth });
+      visit(c.id, depth + 1);
+    }
+  }
+  visit(null, 0);
+  return result;
+}
+
+type EditPostFormProps = {
+  post: PostRow;
+  categories: CategoryRow[];
+  tags: TagRow[];
+  contentTypes: ContentTypeRow[];
+  initialCategoryIds: number[];
+  initialTagIds: number[];
+  initialContentTypeId: number | null;
+};
+
+export function EditPostForm({
+  post,
+  categories,
+  tags,
+  contentTypes,
+  initialCategoryIds,
+  initialTagIds,
+  initialContentTypeId,
+}: EditPostFormProps) {
   const router = useRouter();
   const [title, setTitle] = useState(post.title ?? "");
   const [slug, setSlug] = useState(post.slug ?? "");
@@ -33,10 +77,27 @@ export function EditPostForm({ post }: { post: PostRow }) {
   const [featuredImageUrl, setFeaturedImageUrl] = useState<string | null>(
     post.featured_image
   );
+  const [selectedCategoryIds, setSelectedCategoryIds] = useState<Set<number>>(
+    () => new Set(initialCategoryIds)
+  );
+  const [selectedTags, setSelectedTags] = useState<SelectedTag[]>(() =>
+    initialTagIds.map((id) => {
+      const t = tags.find((x) => x.id === id);
+      return { id: t?.id ?? id, name: t?.name ?? String(id) };
+    })
+  );
+  const [selectedContentTypeId, setSelectedContentTypeId] = useState<number | null>(
+    initialContentTypeId
+  );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const [seoOpen, setSeoOpen] = useState(false);
   const featuredInputRef = useRef<HTMLInputElement>(null);
+
+  const categoryRows = useMemo(() => buildCategoryRows(categories), [categories]);
+  const availableTagOptions = useMemo(
+    () => tags.map((t) => ({ id: t.id, name: t.name ?? "", slug: t.slug ?? "" })),
+    [tags]
+  );
 
   function slugify(text: string) {
     return text
@@ -49,6 +110,15 @@ export function EditPostForm({ post }: { post: PostRow }) {
 
   function handleGenerateSlug() {
     setSlug(slugify(title));
+  }
+
+  function toggleCategory(id: number) {
+    setSelectedCategoryIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   async function handleFeaturedChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -65,6 +135,22 @@ export function EditPostForm({ post }: { post: PostRow }) {
   async function handleSave(asDraft: boolean) {
     setError("");
     setSaving(true);
+    const newTags = selectedTags.filter((t) => t.isNew);
+    const existingTagIds = selectedTags.filter((t) => !t.isNew).map((t) => t.id);
+    const createdIds: number[] = [];
+    for (const t of newTags) {
+      const fd = new FormData();
+      fd.set("name", t.name);
+      const res = await createTag(fd);
+      if (res.error) {
+        setError(res.error);
+        setSaving(false);
+        return;
+      }
+      if (res.id != null) createdIds.push(res.id);
+    }
+    const finalTagIds = [...existingTagIds, ...createdIds];
+
     const formData = new FormData();
     formData.set("title", title);
     formData.set("slug", slug);
@@ -78,6 +164,9 @@ export function EditPostForm({ post }: { post: PostRow }) {
     formData.set("meta_title", metaTitle);
     formData.set("meta_description", metaDescription);
     formData.set("canonical_url", canonicalUrl);
+    selectedCategoryIds.forEach((id) => formData.append("category_ids", String(id)));
+    finalTagIds.forEach((id) => formData.append("tag_ids", String(id)));
+    if (selectedContentTypeId != null) formData.set("content_type_id", String(selectedContentTypeId));
     const result = await updatePost(post.id, formData);
     setSaving(false);
     if (result.error) {
@@ -127,30 +216,24 @@ export function EditPostForm({ post }: { post: PostRow }) {
         </div>
       </div>
 
-      <aside className="w-full shrink-0 space-y-4 lg:w-[33.333%]">
+      <aside className="sticky top-20 h-[calc(100vh-100px)] w-full shrink-0 overflow-y-auto space-y-4 lg:w-[33.333%]">
         {error && (
           <div className="rounded-md bg-red-500/10 px-4 py-3 text-sm text-red-400">
             {error}
           </div>
         )}
 
-        <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-          <h3 className="font-sans text-sm font-medium text-hot-white">
-            Publish Date
-          </h3>
+        <SidebarSection title="Publish Date" defaultOpen={true}>
           <input
             type="datetime-local"
             value={publishedAt}
             onChange={(e) => setPublishedAt(e.target.value)}
-            className="mt-3 w-full rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white focus:border-hot-white/30 focus:outline-none"
+            className="w-full rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white focus:border-hot-white/30 focus:outline-none"
           />
-        </div>
+        </SidebarSection>
 
-        <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-          <h3 className="font-sans text-sm font-medium text-hot-white">
-            Publication Info
-          </h3>
-          <div className="mt-3 space-y-2">
+        <SidebarSection title="Publication Info" defaultOpen={true}>
+          <div className="space-y-2">
             <div>
               <label className="block font-sans text-xs text-gray-500">Source</label>
               <input
@@ -172,13 +255,61 @@ export function EditPostForm({ post }: { post: PostRow }) {
               />
             </div>
           </div>
-        </div>
+        </SidebarSection>
 
-        <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-          <h3 className="font-sans text-sm font-medium text-hot-white">
-            Publish
-          </h3>
-          <div className="mt-3 space-y-2">
+        <SidebarSection title="Content Type" defaultOpen={true}>
+          <select
+            value={selectedContentTypeId ?? ""}
+            onChange={(e) => {
+              const v = e.target.value;
+              setSelectedContentTypeId(v === "" ? null : parseInt(v, 10));
+            }}
+            className="w-full rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white focus:border-hot-white/30 focus:outline-none"
+          >
+            <option value="">None</option>
+            {contentTypes.map((ct) => (
+              <option key={ct.id} value={ct.id}>
+                {ct.name}
+              </option>
+            ))}
+          </select>
+        </SidebarSection>
+
+        <SidebarSection title="Categories" defaultOpen={true}>
+          <div className="max-h-48 space-y-1 overflow-y-auto">
+            {categoryRows.length === 0 ? (
+              <p className="text-xs text-gray-500">No categories defined.</p>
+            ) : (
+              categoryRows.map(({ category: c, depth }) => (
+                <label
+                  key={c.id}
+                  className="flex cursor-pointer items-center gap-2 py-0.5 font-sans text-sm"
+                  style={{ paddingLeft: `${depth * 12}px` }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedCategoryIds.has(c.id)}
+                    onChange={() => toggleCategory(c.id)}
+                    className="rounded border-white/20 bg-hot-black text-hot-white focus:ring-0"
+                  />
+                  {depth > 0 && <span className="text-gray-500">↳</span>}
+                  <span className="text-hot-white">{c.name}</span>
+                </label>
+              ))
+            )}
+          </div>
+        </SidebarSection>
+
+        <SidebarSection title="Tags" defaultOpen={true}>
+          <TagInput
+            availableTags={availableTagOptions}
+            selectedTags={selectedTags}
+            onChange={setSelectedTags}
+          />
+        </SidebarSection>
+
+        <SidebarSection title="Publish" defaultOpen={true}>
+          <div className="space-y-2">
             <select
               value={status}
               onChange={(e) => setStatus(e.target.value as "draft" | "published")}
@@ -206,13 +337,10 @@ export function EditPostForm({ post }: { post: PostRow }) {
               </button>
             </div>
           </div>
-        </div>
+        </SidebarSection>
 
-        <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-          <h3 className="font-sans text-sm font-medium text-hot-white">
-            URL Slug
-          </h3>
-          <div className="mt-3 flex gap-2">
+        <SidebarSection title="URL Slug" defaultOpen={false}>
+          <div className="flex gap-2">
             <input
               type="text"
               value={slug}
@@ -228,57 +356,44 @@ export function EditPostForm({ post }: { post: PostRow }) {
               Generate
             </button>
           </div>
-        </div>
+        </SidebarSection>
 
-        <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-          <button
-            type="button"
-            onClick={() => setSeoOpen((o) => !o)}
-            className="flex w-full items-center justify-between font-sans text-sm font-medium text-hot-white"
-          >
-            SEO
-            <span className="text-gray-400">{seoOpen ? "▼" : "▶"}</span>
-          </button>
-          {seoOpen && (
-            <div className="mt-3 space-y-2">
-              <div>
-                <label className="block font-sans text-xs text-gray-500">Meta Title</label>
-                <input
-                  type="text"
-                  value={metaTitle}
-                  onChange={(e) => setMetaTitle(e.target.value)}
-                  placeholder="Title for search results"
-                  className="mt-1 w-full rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block font-sans text-xs text-gray-500">Meta Description</label>
-                <textarea
-                  value={metaDescription}
-                  onChange={(e) => setMetaDescription(e.target.value)}
-                  placeholder="Short description for search results"
-                  rows={2}
-                  className="mt-1 w-full resize-y rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
-                />
-              </div>
-              <div>
-                <label className="block font-sans text-xs text-gray-500">Canonical URL</label>
-                <input
-                  type="url"
-                  value={canonicalUrl}
-                  onChange={(e) => setCanonicalUrl(e.target.value)}
-                  placeholder="https://…"
-                  className="mt-1 w-full rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
-                />
-              </div>
+        <SidebarSection title="SEO" defaultOpen={false}>
+          <div className="space-y-2">
+            <div>
+              <label className="block font-sans text-xs text-gray-500">Meta Title</label>
+              <input
+                type="text"
+                value={metaTitle}
+                onChange={(e) => setMetaTitle(e.target.value)}
+                placeholder="Title for search results"
+                className="mt-1 w-full rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
+              />
             </div>
-          )}
-        </div>
+            <div>
+              <label className="block font-sans text-xs text-gray-500">Meta Description</label>
+              <textarea
+                value={metaDescription}
+                onChange={(e) => setMetaDescription(e.target.value)}
+                placeholder="Short description for search results"
+                rows={2}
+                className="mt-1 w-full resize-y rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block font-sans text-xs text-gray-500">Canonical URL</label>
+              <input
+                type="url"
+                value={canonicalUrl}
+                onChange={(e) => setCanonicalUrl(e.target.value)}
+                placeholder="https://…"
+                className="mt-1 w-full rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
+              />
+            </div>
+          </div>
+        </SidebarSection>
 
-        <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-          <h3 className="font-sans text-sm font-medium text-hot-white">
-            Featured Image
-          </h3>
+        <SidebarSection title="Featured Image" defaultOpen={false}>
           <input
             ref={featuredInputRef}
             type="file"
@@ -287,7 +402,7 @@ export function EditPostForm({ post }: { post: PostRow }) {
             onChange={handleFeaturedChange}
           />
           {featuredImageUrl ? (
-            <div className="mt-3 space-y-2">
+            <div className="space-y-2">
               <img
                 src={featuredImageUrl}
                 alt="Featured"
@@ -308,12 +423,12 @@ export function EditPostForm({ post }: { post: PostRow }) {
             <button
               type="button"
               onClick={() => featuredInputRef.current?.click()}
-              className="mt-3 flex w-full items-center justify-center rounded-md border border-dashed border-white/20 py-8 font-sans text-sm text-gray-400 transition-colors hover:border-white/30 hover:text-hot-white"
+              className="flex w-full items-center justify-center rounded-md border border-dashed border-white/20 py-8 font-sans text-sm text-gray-400 transition-colors hover:border-white/30 hover:text-hot-white"
             >
               Upload image
             </button>
           )}
-        </div>
+        </SidebarSection>
       </aside>
     </div>
   );

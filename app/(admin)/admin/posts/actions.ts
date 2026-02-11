@@ -97,6 +97,28 @@ export async function getPostById(id: string): Promise<PostRow | null> {
   } as PostRow;
 }
 
+export type PostTaxonomies = {
+  categoryIds: number[];
+  tagIds: number[];
+  contentTypeId: number | null;
+};
+
+export async function getPostTaxonomies(postId: string): Promise<PostTaxonomies> {
+  const client = await createClient();
+  const [pc, pt, pct] = await Promise.all([
+    client.from("post_categories").select("category_id").eq("post_id", postId),
+    client.from("post_tags").select("tag_id").eq("post_id", postId),
+    client.from("post_content_types").select("content_type_id").eq("post_id", postId).maybeSingle(),
+  ]);
+  const categoryIds = (pc.data ?? []).map((r: { category_id: number }) => r.category_id);
+  const tagIds = (pt.data ?? []).map((r: { tag_id: number }) => r.tag_id);
+  const contentTypeId =
+    pct.data != null && typeof (pct.data as { content_type_id: number }).content_type_id === "number"
+      ? (pct.data as { content_type_id: number }).content_type_id
+      : null;
+  return { categoryIds, tagIds, contentTypeId };
+}
+
 export async function createPost(formData: FormData): Promise<{ id?: string; error?: string }> {
   const supabaseServer = await createClient();
   const {
@@ -164,6 +186,14 @@ export async function updatePost(
   const meta_title = (formData.get("meta_title") as string)?.trim() || null;
   const meta_description = (formData.get("meta_description") as string)?.trim() || null;
   const canonical_url = (formData.get("canonical_url") as string)?.trim() || null;
+  const categoryIds = (formData.getAll("category_ids") as string[]).map((s) => parseInt(s, 10)).filter((n) => !Number.isNaN(n));
+  const tagIds = (formData.getAll("tag_ids") as string[]).map((s) => parseInt(s, 10)).filter((n) => !Number.isNaN(n));
+  const contentTypeIdRaw = formData.get("content_type_id");
+  const contentTypeId =
+    contentTypeIdRaw != null && String(contentTypeIdRaw).trim() !== ""
+      ? parseInt(String(contentTypeIdRaw), 10)
+      : null;
+  const contentTypeIdValid = contentTypeId != null && !Number.isNaN(contentTypeId) ? contentTypeId : null;
 
   const payload: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
@@ -187,6 +217,20 @@ export async function updatePost(
   if (error) {
     console.error("[updatePost]", error);
     return { error: error.message };
+  }
+
+  // Taxonomies: delete then insert
+  await client.from("post_categories").delete().eq("post_id", id);
+  await client.from("post_tags").delete().eq("post_id", id);
+  await client.from("post_content_types").delete().eq("post_id", id);
+  if (categoryIds.length > 0) {
+    await client.from("post_categories").insert(categoryIds.map((category_id) => ({ post_id: id, category_id })));
+  }
+  if (tagIds.length > 0) {
+    await client.from("post_tags").insert(tagIds.map((tag_id) => ({ post_id: id, tag_id })));
+  }
+  if (contentTypeIdValid != null) {
+    await client.from("post_content_types").insert({ post_id: id, content_type_id: contentTypeIdValid });
   }
   return {};
 }

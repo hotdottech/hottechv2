@@ -35,7 +35,7 @@ export async function getTags(): Promise<TagRow[]> {
 
 export async function createTag(
   formData: FormData
-): Promise<{ error?: string }> {
+): Promise<{ id?: number; error?: string }> {
   const client = await createClient();
   const {
     data: { user },
@@ -52,10 +52,10 @@ export async function createTag(
   const slugInput = (formData.get("slug") as string)?.trim();
   const slug = slugInput ? slugFromName(slugInput) : slugFromName(name);
 
-  const { error } = await client
+  const { data, error } = await client
     .from("tags")
     .insert({ name, slug })
-    .select()
+    .select("id")
     .single();
 
   if (error) {
@@ -64,7 +64,7 @@ export async function createTag(
   }
 
   revalidatePath("/admin/tags");
-  return {};
+  return { id: (data as { id: number } | null)?.id };
 }
 
 export async function updateTag(

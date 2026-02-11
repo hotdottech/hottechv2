@@ -104,11 +104,11 @@ export function ContentTypesManager({ contentTypes }: Props) {
         </form>
       </div>
 
-      <div className="rounded-lg border border-white/10 bg-white/5 p-6">
-        <h2 className="mb-4 font-sans text-lg font-medium text-hot-white">
+      <div className="flex max-h-[calc(100vh-5rem)] min-h-0 flex-col rounded-lg border border-white/10 bg-white/5 p-6">
+        <h2 className="mb-4 shrink-0 font-sans text-lg font-medium text-hot-white">
           All Content Types
         </h2>
-        <div className="overflow-hidden rounded-md border border-white/10">
+        <div className="min-h-0 flex-1 overflow-y-auto rounded-md border border-white/10">
           <table className="w-full border-collapse font-sans text-sm">
             <thead>
               <tr className="border-b border-white/10 bg-white/5">

@@ -1,6 +1,13 @@
 import Parser from "rss-parser";
+import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+
+type ClassificationResult = {
+  category_ids?: number[];
+  tag_ids?: number[];
+  content_type_id?: number | null;
+};
 
 const AUTHORY_FEED_URL = "https://authory.com/hot/rss";
 const PLACEHOLDER_IMAGE = "https://placehold.co/600x400/1a1a1a/FFF";
@@ -93,6 +100,50 @@ function extractSlugFromUrl(url: string, titleFallback: string): string {
   return slugify(titleFallback);
 }
 
+/** Call OpenAI to classify article into category_ids, tag_ids, content_type_id. Returns null on failure. */
+async function classifyContent(
+  title: string,
+  summary: string,
+  categoriesList: string,
+  tagsList: string,
+  contentTypesList: string
+): Promise<ClassificationResult | null> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.warn("[ingest] OPENAI_API_KEY missing; skipping classification.");
+    return null;
+  }
+  try {
+    const client = new OpenAI({ apiKey });
+    const userContent = `Article: ${title} - ${summary || "(no summary)"}
+
+Categories: ${categoriesList}
+Tags: ${tagsList}
+Content Types: ${contentTypesList}`;
+
+    const completion = await client.chat.completions.create({
+      model: "gpt-4o-mini",
+      messages: [
+        {
+          role: "system",
+          content:
+            "You are an expert tech editor. Analyze the article title and summary. Match them to the provided IDs for Categories, Tags, and Content Types. Return a JSON object with keys: category_ids (array of integers), tag_ids (array of integers), content_type_id (single integer or null). Do not invent new tags; only use the provided IDs.",
+        },
+        { role: "user", content: userContent },
+      ],
+      response_format: { type: "json_object" },
+    });
+
+    const raw = completion.choices[0]?.message?.content;
+    if (!raw) return null;
+    const parsed = JSON.parse(raw) as ClassificationResult;
+    return parsed;
+  } catch (err) {
+    console.warn("[ingest] OpenAI classification failed:", err);
+    return null;
+  }
+}
+
 export async function GET() {
   try {
     const supabase = getSupabaseAdmin();
@@ -107,6 +158,22 @@ export async function GET() {
         ],
       },
     });
+
+    // Fetch taxonomies (the menu for AI)
+    const [catRes, tagRes, ctRes] = await Promise.all([
+      supabase.from("categories").select("id, name").order("name"),
+      supabase.from("tags").select("id, name").order("name"),
+      supabase.from("content_types").select("id, name").order("name"),
+    ]);
+    const categoriesList = (catRes.data ?? [])
+      .map((r: { id: number; name: string | null }) => `${r.id}: ${r.name ?? ""}`)
+      .join("\n");
+    const tagsList = (tagRes.data ?? [])
+      .map((r: { id: number; name: string | null }) => `${r.id}: ${r.name ?? ""}`)
+      .join("\n");
+    const contentTypesList = (ctRes.data ?? [])
+      .map((r: { id: number; name: string | null }) => `${r.id}: ${r.name ?? ""}`)
+      .join("\n");
 
     // Step 1: Fetch & Sanitize
     const response = await fetch(AUTHORY_FEED_URL, {
@@ -164,24 +231,28 @@ export async function GET() {
         console.log("[ingest] First item — Date:", published_at, "Image:", featured_image);
       }
 
-      const { error } = await supabase.from("posts").insert({
-        title,
-        slug,
-        featured_image,
-        source_name: getPublisherFromUrl(link),
-        original_url,
-        excerpt: snippet,
-        summary: snippet,
-        content: "",
-        published_at,
-        created_at: published_at,
-        status: "published",
-        guid,
-        meta_title: title,
-        meta_description: snippet,
-        canonical_url: link || null,
-        type: "external",
-      });
+      const { data: newPost, error } = await supabase
+        .from("posts")
+        .insert({
+          title,
+          slug,
+          featured_image,
+          source_name: getPublisherFromUrl(link),
+          original_url,
+          excerpt: snippet,
+          summary: snippet,
+          content: "",
+          published_at,
+          created_at: published_at,
+          status: "published",
+          guid,
+          meta_title: title,
+          meta_description: snippet,
+          canonical_url: link || null,
+          type: "external",
+        })
+        .select("id")
+        .single();
 
       if (error) {
         if (error.code === "23505") {
@@ -192,6 +263,48 @@ export async function GET() {
         continue;
       }
       added++;
+      const postId = (newPost as { id: string })?.id;
+      if (!postId) continue;
+
+      // AI classification (optional; continue without taxonomy on failure)
+      const classification = await classifyContent(
+        title,
+        snippet ?? "",
+        categoriesList,
+        tagsList,
+        contentTypesList
+      );
+
+      if (classification) {
+        const catIds = Array.isArray(classification.category_ids)
+          ? classification.category_ids.filter((n) => Number.isInteger(n))
+          : [];
+        const tagIds = Array.isArray(classification.tag_ids)
+          ? classification.tag_ids.filter((n) => Number.isInteger(n))
+          : [];
+        const contentTypeId =
+          classification.content_type_id != null &&
+          Number.isInteger(classification.content_type_id)
+            ? classification.content_type_id
+            : null;
+
+        if (catIds.length > 0) {
+          await supabase.from("post_categories").insert(
+            catIds.map((category_id) => ({ post_id: postId, category_id }))
+          );
+        }
+        if (tagIds.length > 0) {
+          await supabase.from("post_tags").insert(
+            tagIds.map((tag_id) => ({ post_id: postId, tag_id }))
+          );
+        }
+        if (contentTypeId != null) {
+          await supabase.from("post_content_types").insert({
+            post_id: postId,
+            content_type_id: contentTypeId,
+          });
+        }
+      }
     }
 
     return NextResponse.json({ success: true, added, skipped });
