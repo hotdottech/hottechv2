@@ -1,13 +1,33 @@
+import type { Metadata } from "next";
 import Image from "next/image";
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
 import { ArrowLeft } from "lucide-react";
-import { getPostBySlug } from "@/lib/data";
+import { getPostBySlug, getPostPrimaryCategoryName } from "@/lib/data";
+import { constructMetadata } from "@/lib/seo";
+import { JsonLd } from "@/components/seo/JsonLd";
+import { getBaseUrl } from "@/lib/url";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const post = await getPostBySlug(slug);
+  if (!post) return {};
+  const category = await getPostPrimaryCategoryName(post.id);
+  return await constructMetadata({
+    title: post.title ?? "Untitled",
+    description: post.excerpt ?? undefined,
+    image: post.featured_image ?? undefined,
+    type: "article",
+    canonical: post.slug ? `/${post.slug}` : undefined,
+    templateType: "post",
+    category: category ?? undefined,
+  });
+}
 
 export default async function ArticlePage({ params }: PageProps) {
   const { slug } = await params;
@@ -18,9 +38,32 @@ export default async function ArticlePage({ params }: PageProps) {
   }
 
   const date = post.updated_at ?? post.created_at;
+  const baseUrl = getBaseUrl().replace(/\/$/, "");
+  const articleUrl = post.slug ? `${baseUrl}/${post.slug}` : baseUrl;
+  const imageUrl = post.featured_image
+    ? post.featured_image.startsWith("http")
+      ? post.featured_image
+      : `${baseUrl}/${post.featured_image.replace(/^\//, "")}`
+    : undefined;
+
+  const newsArticleSchema = {
+    "@context": "https://schema.org",
+    "@type": "NewsArticle",
+    headline: post.title ?? "Untitled",
+    image: imageUrl ? [imageUrl] : undefined,
+    datePublished: (post.published_at ?? post.created_at) ?? undefined,
+    dateModified: post.updated_at ?? undefined,
+    author: {
+      "@type": "Person",
+      name: post.source_name ?? "Nirave Gondhia",
+    },
+    url: articleUrl,
+  };
 
   return (
-    <article className="mx-auto max-w-4xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
+    <>
+      <JsonLd data={newsArticleSchema} />
+      <article className="mx-auto max-w-4xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
       <Link
         href="/"
         className="mb-8 inline-flex items-center gap-1.5 font-sans text-sm text-gray-400 transition-colors hover:text-hot-white"
@@ -63,5 +106,6 @@ export default async function ArticlePage({ params }: PageProps) {
         }}
       />
     </article>
+    </>
   );
 }

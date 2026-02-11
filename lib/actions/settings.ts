@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath } from "next/cache";
+import { revalidatePath, revalidateTag } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import type { HomepageBlock } from "@/lib/types";
 
@@ -104,5 +104,42 @@ export async function updateHomepageLayout(
   }
 
   revalidatePath("/");
+  return {};
+}
+
+export async function updateSeoSettings(updates: {
+  seo_title?: string | null;
+  seo_description?: string | null;
+  social_twitter?: string | null;
+  social_linkedin?: string | null;
+  default_og_image?: string | null;
+  seo_template_post?: string | null;
+  seo_template_archive?: string | null;
+  seo_template_page?: string | null;
+}): Promise<{ error?: string }> {
+  const client = await createClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) {
+    return { error: "Unauthorized." };
+  }
+
+  const { error } = await client
+    .from("site_settings")
+    .update({
+      ...updates,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", 1);
+
+  if (error) {
+    console.error("[updateSeoSettings]", error);
+    return { error: error.message };
+  }
+
+  revalidatePath("/");
+  revalidatePath("/admin/settings");
+  revalidateTag("site-settings");
   return {};
 }

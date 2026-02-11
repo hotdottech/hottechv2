@@ -75,5 +75,13 @@ export interface SiteSettings {
   cta_settings: SiteSettingsCta;
   social_links: unknown;
   homepage_layout?: HomepageBlock[];
+  seo_title: string | null;
+  seo_description: string | null;
+  social_twitter: string | null;
+  social_linkedin: string | null;
+  default_og_image: string | null;
+  seo_template_post: string | null;
+  seo_template_archive: string | null;
+  seo_template_page: string | null;
   updated_at: string;
 }

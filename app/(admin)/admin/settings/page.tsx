@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 import { MediaPicker } from "@/app/components/admin/MediaPicker";
+import { SeoSettings } from "@/app/components/admin/settings/SeoSettings";
 
 type CtaSettings = {
   type: string;
@@ -125,17 +126,20 @@ export default function AdminSettingsPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6 p-6 lg:p-10">
-        <h1 className="font-serif text-2xl font-bold text-hot-white">
-          Global Settings
-        </h1>
-        <p className="font-sans text-gray-400">Loading…</p>
+      <div className="flex-1 h-[calc(100vh-100px)] overflow-y-auto pb-24 px-6">
+        <div className="space-y-6 py-6 lg:py-10">
+          <h1 className="font-serif text-2xl font-bold text-hot-white">
+            Global Settings
+          </h1>
+          <p className="font-sans text-gray-400">Loading…</p>
+        </div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-8 p-6 lg:p-10">
+    <div className="flex-1 h-[calc(100vh-100px)] overflow-y-auto pb-24 px-6">
+      <div className="space-y-8 py-6 lg:py-10">
       <div className="flex items-center justify-between">
         <h1 className="font-serif text-2xl font-bold text-hot-white">
           Global Settings
@@ -308,6 +312,8 @@ export default function AdminSettingsPage() {
         )}
       </section>
 
+      <SeoSettings />
+
       <div>
         <button
           type="button"
@@ -317,6 +323,7 @@ export default function AdminSettingsPage() {
         >
           {saving ? "Saving…" : "Save Changes"}
         </button>
+      </div>
       </div>
 
       {logoPickerOpen && (

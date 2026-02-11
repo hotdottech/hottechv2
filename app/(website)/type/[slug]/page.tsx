@@ -1,10 +1,23 @@
+import type { Metadata } from "next";
 import { notFound } from "next/navigation";
-import { getPostsByTaxonomy } from "@/lib/data";
+import { getPostsByTaxonomy, getTaxonomyBySlug } from "@/lib/data";
+import { constructMetadata } from "@/lib/seo";
 import { ArchiveLayout } from "@/components/archive/ArchiveLayout";
 
 type PageProps = {
   params: Promise<{ slug: string }>;
 };
+
+export async function generateMetadata({ params }: PageProps): Promise<Metadata> {
+  const { slug } = await params;
+  const tax = await getTaxonomyBySlug("content_type", slug);
+  if (!tax) return {};
+  return await constructMetadata({
+    title: `${tax.name}s`,
+    description: `All our latest ${tax.name}s.`,
+    templateType: "archive",
+  });
+}
 
 export default async function ContentTypeArchivePage({ params }: PageProps) {
   const { slug } = await params;

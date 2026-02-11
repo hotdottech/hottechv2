@@ -1,4 +1,5 @@
 import Parser from "rss-parser";
+import { unstable_cache } from "next/cache";
 import { parseISO } from "date-fns";
 import { supabase } from "./supabase";
 import type { FeedItem, SiteSettings } from "./types";
@@ -373,6 +374,28 @@ export async function getPostsByTaxonomy(
   return { title: name, description, posts };
 }
 
+/** Fetch only taxonomy name by slug (for metadata). */
+export async function getTaxonomyBySlug(
+  type: "category" | "tag" | "content_type",
+  slug: string
+): Promise<{ name: string } | null> {
+  const s = (slug ?? "").trim();
+  if (!s) return null;
+  const table =
+    type === "category"
+      ? "categories"
+      : type === "tag"
+        ? "tags"
+        : "content_types";
+  const { data, error } = await supabase
+    .from(table)
+    .select("name")
+    .eq("slug", s)
+    .maybeSingle();
+  if (error || !data) return null;
+  return { name: data.name ?? s };
+}
+
 /** Published posts from Supabase for the unified feed. */
 export async function getSupabasePosts(): Promise<FeedItem[]> {
   const { data, error } = await supabase
@@ -416,12 +439,14 @@ export type SupabasePost = {
   status: string | null;
   created_at: string | null;
   updated_at: string | null;
+  published_at?: string | null;
+  source_name?: string | null;
 };
 
 export async function getPostBySlug(slug: string): Promise<SupabasePost | null> {
   const { data, error } = await supabase
     .from("posts")
-    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at")
+    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at, published_at, source_name")
     .eq("slug", slug)
     .eq("status", "published")
     .maybeSingle();
@@ -436,6 +461,26 @@ export async function getPostBySlug(slug: string): Promise<SupabasePost | null> 
     body: data.content != null ? String(data.content) : null,
     featured_image: data.main_image != null ? String(data.main_image) : null,
   } as SupabasePost;
+}
+
+/** Primary category name for a post (first linked category). For SEO title template {{category}}. */
+export async function getPostPrimaryCategoryName(
+  postId: string
+): Promise<string | null> {
+  const { data, error } = await supabase
+    .from("post_categories")
+    .select("category_id")
+    .eq("post_id", postId)
+    .limit(1)
+    .maybeSingle();
+  if (error || !data?.category_id) return null;
+  const { data: cat, error: catError } = await supabase
+    .from("categories")
+    .select("name")
+    .eq("id", data.category_id)
+    .maybeSingle();
+  if (catError || !cat?.name) return null;
+  return String(cat.name);
 }
 
 export async function getUnifiedFeed(): Promise<FeedItem[]> {
@@ -479,16 +524,60 @@ export async function getNewsletterBySlug(slug: string): Promise<NewsletterPubli
   return data as NewsletterPublic | null;
 }
 
-/** Fetch the singleton site settings (id=1). */
+/** Fetch the singleton site settings (id=1). Cached for 60s; invalidate with revalidateTag("site-settings"). */
 export async function getSiteSettings(): Promise<SiteSettings | null> {
+  return unstable_cache(
+    async () => {
+      const { data, error } = await supabase
+        .from("site_settings")
+        .select("*")
+        .eq("id", 1)
+        .maybeSingle();
+      if (error) {
+        console.error("Error fetching settings:", error);
+        return null;
+      }
+      return data as SiteSettings | null;
+    },
+    ["site-settings"],
+    { revalidate: 60, tags: ["site-settings"] }
+  )();
+}
+
+/** Post slug + updated_at for sitemap. */
+export async function getPostSlugsForSitemap(): Promise<
+  { slug: string; updated_at: string | null }[]
+> {
   const { data, error } = await supabase
-    .from("site_settings")
-    .select("*")
-    .eq("id", 1)
-    .maybeSingle();
+    .from("posts")
+    .select("slug, updated_at, id")
+    .eq("status", "published");
   if (error) {
-    console.error("Error fetching settings:", error);
-    return null;
+    console.error("[getPostSlugsForSitemap]", error);
+    return [];
   }
-  return data as SiteSettings | null;
+  return (data ?? []).map((r) => ({
+    slug: (r.slug ?? r.id) as string,
+    updated_at: r.updated_at ?? null,
+  })) as { slug: string; updated_at: string | null }[];
+}
+
+/** Taxonomy slugs for sitemap. */
+export async function getTaxonomySlugsForSitemap(
+  type: "category" | "tag" | "content_type"
+): Promise<string[]> {
+  const table =
+    type === "category"
+      ? "categories"
+      : type === "tag"
+        ? "tags"
+        : "content_types";
+  const { data, error } = await supabase.from(table).select("slug");
+  if (error) {
+    console.error("[getTaxonomySlugsForSitemap]", error);
+    return [];
+  }
+  return (data ?? [])
+    .map((r) => r.slug)
+    .filter((s): s is string => typeof s === "string" && s.length > 0);
 }
