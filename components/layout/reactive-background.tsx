@@ -28,10 +28,12 @@ export function ReactiveBackground() {
     if (!ctx) return;
 
     function setSize() {
+      const c = canvasRef.current;
+      if (!c) return;
       const w = window.innerWidth;
       const h = window.innerHeight;
-      canvas.width = w;
-      canvas.height = h;
+      c.width = w;
+      c.height = h;
       if (!hasMouseRef.current) {
         mouseRef.current.x = w / 2;
         mouseRef.current.y = h / 2;
@@ -56,6 +58,11 @@ export function ReactiveBackground() {
 
     let start: number;
     function loop(t: number) {
+      const c = canvasRef.current;
+      if (!c || !ctx) {
+        rafRef.current = requestAnimationFrame(loop);
+        return;
+      }
       if (!start) start = t;
       start = t;
 
@@ -76,8 +83,8 @@ export function ReactiveBackground() {
       orbs.x3 = lerp(orbs.x3, orbs.x2 + drift, 0.05);
       orbs.y3 = lerp(orbs.y3, orbs.y2 + driftY, 0.05);
 
-      const w = canvas.width;
-      const h = canvas.height;
+      const w = c.width;
+      const h = c.height;
 
       ctx.clearRect(0, 0, w, h);
       ctx.fillStyle = "#050505";
