@@ -140,6 +140,6 @@ export async function updateSeoSettings(updates: {
 
   revalidatePath("/");
   revalidatePath("/admin/settings");
-  revalidateTag("site-settings");
+  revalidateTag("site-settings", "default");
   return {};
 }

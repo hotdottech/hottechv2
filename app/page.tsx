@@ -4,12 +4,7 @@ import {
   getPostsByIds,
   getSmartFeedPosts,
 } from "@/lib/data";
-import type {
-  FeatureGridBlockData,
-  TimelineBlockData,
-  SmartFeedBlockData,
-  HomepageBlock,
-} from "@/lib/types";
+import type { HomepageBlock } from "@/lib/types";
 import { Hero } from "@/components/home/hero";
 import { FeedGrid } from "@/components/home/feed-grid";
 import { Timeline } from "@/components/home/Timeline";
@@ -37,7 +32,7 @@ export default async function Home() {
     const results = await Promise.all(
       featureGridBlocks.map((b) =>
         getPostsByIds(
-          ((b.data as FeatureGridBlockData)?.postIds ?? []) as string[]
+          ((b.data as any)?.postIds ?? []) as string[]
         )
       )
     );
@@ -53,7 +48,7 @@ export default async function Home() {
   if (smartFeedBlocks.length > 0) {
     const results = await Promise.all(
       smartFeedBlocks.map((b) =>
-        getSmartFeedPosts((b.data as SmartFeedBlockData) ?? {})
+        getSmartFeedPosts((b.data as any) ?? {})
       )
     );
     smartFeedBlocks.forEach((b, i) => {
@@ -69,42 +64,43 @@ export default async function Home() {
         {layout
           .filter((b) => b.enabled)
           .map((block) => {
-            if (block.type === "hero") {
-              return <Hero key={block.id} data={block.data} />;
+            switch (block.type) {
+              case "hero":
+                return <Hero key={block.id} data={block.data as any} />;
+              case "feature_grid": {
+                const data = block.data as any;
+                const items = gridItemsByBlockId[block.id] ?? [];
+                const sectionTitle = data?.sectionTitle?.trim() ?? "";
+                return (
+                  <FeedGrid
+                    key={block.id}
+                    items={items}
+                    sectionTitle={sectionTitle || undefined}
+                  />
+                );
+              }
+              case "timeline":
+                return (
+                  <Timeline
+                    key={block.id}
+                    data={block.data as any}
+                  />
+                );
+              case "smart_feed": {
+                const data = block.data as any;
+                const items = smartFeedItemsByBlockId[block.id] ?? [];
+                const sectionTitle = data?.title?.trim() ?? "";
+                return (
+                  <FeedGrid
+                    key={block.id}
+                    items={items}
+                    sectionTitle={sectionTitle || undefined}
+                  />
+                );
+              }
+              default:
+                return null;
             }
-            if (block.type === "timeline") {
-              return (
-                <Timeline
-                  key={block.id}
-                  data={block.data as TimelineBlockData}
-                />
-              );
-            }
-            if (block.type === "feature_grid") {
-              const data = block.data as FeatureGridBlockData | undefined;
-              const items = gridItemsByBlockId[block.id] ?? [];
-              const sectionTitle = data?.sectionTitle?.trim() ?? "";
-              return (
-                <FeedGrid
-                  key={block.id}
-                  items={items}
-                  sectionTitle={sectionTitle || undefined}
-                />
-              );
-            }
-            if (block.type === "smart_feed") {
-              const data = block.data as SmartFeedBlockData | undefined;
-              const items = smartFeedItemsByBlockId[block.id] ?? [];
-              const sectionTitle = data?.title?.trim() ?? "";
-              return (
-                <FeedGrid
-                  key={block.id}
-                  items={items}
-                  sectionTitle={sectionTitle || undefined}
-                />
-              );
-            }
-            return null;
           })}
         <SocialPresence />
       </main>
