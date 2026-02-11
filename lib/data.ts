@@ -526,23 +526,70 @@ export async function getUnifiedFeed(): Promise<FeedItem[]> {
   return sorted;
 }
 
-/** Public newsletter by slug (for website archive). */
+/** Sent newsletter list item (archive index). */
+export type SentNewsletterItem = {
+  id: string;
+  subject: string | null;
+  slug: string | null;
+  sent_at: string | null;
+  /** From preview_text, or snippet from content. */
+  description: string | null;
+  preview_text: string | null;
+  featured_image: string | null;
+};
+
+/** Public newsletter by slug (for website archive / web view). */
 export type NewsletterPublic = {
   id: string;
   subject: string | null;
   slug: string | null;
   preview_text: string | null;
   content: string | null;
+  featured_image: string | null;
   status: string | null;
   created_at: string | null;
   updated_at: string | null;
-  published_at: string | null;
+  sent_at: string | null;
 };
 
+/** Fetch all sent newsletters for the public archive, ordered by sent_at desc. */
+export async function getSentNewsletters(): Promise<SentNewsletterItem[]> {
+  const { data, error } = await supabase
+    .from("newsletters")
+    .select("id, subject, slug, sent_at, preview_text, content, featured_image")
+    .eq("status", "sent")
+    .order("sent_at", { ascending: false });
+
+  if (error) {
+    console.error("[getSentNewsletters]", error);
+    return [];
+  }
+  const rows = (data ?? []) as { id: string; subject: string | null; slug: string | null; sent_at: string | null; preview_text: string | null; content: string | null; featured_image: string | null }[];
+  return rows.map((row) => {
+    const preview_text = row.preview_text?.trim() || null;
+    let description: string | null = preview_text;
+    if (!description && row.content) {
+      const raw = typeof row.content === "string" ? row.content : (row.content != null ? String(row.content) : "");
+      const stripped = raw.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+      description = stripped.slice(0, 160) + (stripped.length > 160 ? "…" : "") || null;
+    }
+    return {
+      id: row.id,
+      subject: row.subject,
+      slug: row.slug,
+      sent_at: row.sent_at,
+      description,
+      preview_text,
+      featured_image: row.featured_image?.trim() || null,
+    };
+  });
+}
+
+/** Fetch newsletter by slug (any status). Page decides access for drafts. */
 export async function getNewsletterBySlug(slug: string): Promise<NewsletterPublic | null> {
   const { data, error } = await supabase
     .from("newsletters")
-    .select("id, subject, slug, preview_text, content, status, created_at, updated_at, published_at")
+    .select("id, subject, slug, preview_text, content, featured_image, status, created_at, updated_at, sent_at")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -550,7 +597,15 @@ export async function getNewsletterBySlug(slug: string): Promise<NewsletterPubli
     console.error("[getNewsletterBySlug]", error);
     return null;
   }
-  return data as NewsletterPublic | null;
+  if (!data) return null;
+  const content = data.content;
+  const contentStr =
+    content == null ? null : typeof content === "string" ? content : JSON.stringify(content);
+  return {
+    ...data,
+    content: contentStr,
+    featured_image: data.featured_image?.trim() || null,
+  } as NewsletterPublic;
 }
 
 /** Fetch the singleton site settings (id=1). Cached for 60s; invalidate with revalidateTag("site-settings"). */

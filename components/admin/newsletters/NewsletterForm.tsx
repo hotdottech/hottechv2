@@ -3,6 +3,7 @@
 import { useState, useCallback, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { Eye } from "lucide-react";
 import { RichTextEditor } from "@/components/admin/editor/RichTextEditor";
 import { AudienceSelector } from "@/components/admin/newsletters/AudienceSelector";
 import { UniversalImagePicker } from "@/app/components/admin/shared/UniversalImagePicker";
@@ -86,8 +87,10 @@ export function NewsletterForm({ initialData }: NewsletterFormProps) {
     [subject, content, previewText, slug, id]
   );
 
+  const isSent = initialData?.status === "sent";
+
   const saveDraft = useCallback(
-    async (skipNavigate?: boolean): Promise<string | null> => {
+    async (skipNavigate?: boolean, keepStatusSent?: boolean): Promise<string | null> => {
       setError("");
       setSaving(true);
       const formData = new FormData();
@@ -96,7 +99,10 @@ export function NewsletterForm({ initialData }: NewsletterFormProps) {
       formData.set("preview_text", previewText);
       formData.set("featured_image", featuredImage ?? "");
       formData.set("content", content);
-      formData.set("status", "draft");
+      formData.set(
+        "status",
+        keepStatusSent && initialData?.status === "sent" ? "sent" : "draft"
+      );
       formData.set("target_config", JSON.stringify(audience));
 
       if (id) {
@@ -122,12 +128,16 @@ export function NewsletterForm({ initialData }: NewsletterFormProps) {
         return null;
       }
     },
-    [id, subject, slug, previewText, featuredImage, content, audience, router]
+    [id, subject, slug, previewText, featuredImage, content, audience, initialData?.status, router]
   );
 
   const handleSaveDraft = useCallback(async () => {
-    await saveDraft();
-  }, [saveDraft]);
+    await saveDraft(undefined, isSent);
+  }, [saveDraft, isSent]);
+
+  const handlePreview = useCallback(() => {
+    if (slug?.trim()) window.open("/newsletters/" + slug.trim(), "_blank");
+  }, [slug]);
 
   const handleSendTest = useCallback(() => {
     setTestEmail("");
@@ -164,7 +174,7 @@ export function NewsletterForm({ initialData }: NewsletterFormProps) {
   const handleBroadcast = useCallback(async () => {
     setBroadcastStatus("sending");
     setBroadcastError("");
-    const savedId = await saveDraft(true);
+    const savedId = await saveDraft(true, isSent);
     if (savedId == null) {
       setBroadcastStatus("error");
       setBroadcastError("Could not save draft.");
@@ -179,7 +189,7 @@ export function NewsletterForm({ initialData }: NewsletterFormProps) {
       setBroadcastModalOpen(false);
       router.push("/admin/newsletters");
     }
-  }, [saveDraft, router]);
+  }, [saveDraft, isSent, router]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -198,7 +208,20 @@ export function NewsletterForm({ initialData }: NewsletterFormProps) {
             disabled={saving}
             className="rounded-md border border-white/20 bg-white/10 px-4 py-2 font-sans text-sm font-medium text-hot-white transition-colors hover:bg-white/15 disabled:opacity-50"
           >
-            {saving ? "Saving…" : "Save Draft"}
+            {saving
+              ? "Saving…"
+              : isSent
+                ? "Update Web Version"
+                : "Save Draft"}
+          </button>
+          <button
+            type="button"
+            onClick={handlePreview}
+            disabled={!slug?.trim()}
+            className="rounded-md border border-white/20 px-4 py-2 font-sans text-sm font-medium text-hot-white transition-colors hover:bg-white/10 disabled:opacity-50 disabled:pointer-events-none"
+            title="Preview"
+          >
+            <Eye className="h-4 w-4" />
           </button>
           <button
             type="button"

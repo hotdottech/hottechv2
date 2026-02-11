@@ -149,6 +149,7 @@ export async function updateNewsletter(id: string, formData: FormData): Promise<
   const preview_text = (formData.get("preview_text") as string)?.trim();
   const content = formData.get("content") as string;
   const featured_image = formData.get("featured_image") as string | null;
+  /** Use passed status so "Update Web Version" can keep status === 'sent'. */
   const status = (formData.get("status") as string) || "draft";
   let target_config: Record<string, unknown> | undefined;
   try {
