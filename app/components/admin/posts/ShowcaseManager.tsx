@@ -130,6 +130,22 @@ export function ShowcaseManager({ items, onChange, type, displayOptions = {}, on
     [displayOptions, onDisplayOptionsChange]
   );
 
+  const gridColumns = Math.min(5, Math.max(3, Number(displayOptions?.grid_columns) || 3));
+  const setGridColumns = useCallback(
+    (value: number) => {
+      onDisplayOptionsChange?.({ ...displayOptions, grid_columns: value });
+    },
+    [displayOptions, onDisplayOptionsChange]
+  );
+
+  const imageShape = (displayOptions?.image_shape as string) === "square" ? "square" : "circle";
+  const setImageShape = useCallback(
+    (value: "circle" | "square") => {
+      onDisplayOptionsChange?.({ ...displayOptions, image_shape: value });
+    },
+    [displayOptions, onDisplayOptionsChange]
+  );
+
   const label = type === "people" ? "People" : "Products";
 
   return (
@@ -138,7 +154,7 @@ export function ShowcaseManager({ items, onChange, type, displayOptions = {}, on
         <h3 className="font-sans text-sm font-medium text-hot-white">
           Showcase: {label}
         </h3>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
           <label className="flex cursor-pointer items-center gap-2 font-sans text-sm text-hot-white">
             <input
               type="checkbox"
@@ -148,6 +164,31 @@ export function ShowcaseManager({ items, onChange, type, displayOptions = {}, on
             />
             Hide Section Title
           </label>
+          <div className="flex items-center gap-2">
+            <span className="font-sans text-xs text-gray-500">Columns</span>
+            <select
+              value={gridColumns}
+              onChange={(e) => setGridColumns(Number(e.target.value))}
+              className="rounded border border-white/10 bg-hot-black px-2 py-1 font-sans text-sm text-hot-white focus:border-hot-white/30 focus:outline-none"
+            >
+              <option value={3}>3</option>
+              <option value={4}>4</option>
+              <option value={5}>5</option>
+            </select>
+          </div>
+          {type === "people" && (
+            <div className="flex items-center gap-2">
+              <span className="font-sans text-xs text-gray-500">Image Style</span>
+              <select
+                value={imageShape}
+                onChange={(e) => setImageShape(e.target.value as "circle" | "square")}
+                className="rounded border border-white/10 bg-hot-black px-2 py-1 font-sans text-sm text-hot-white focus:border-hot-white/30 focus:outline-none"
+              >
+                <option value="circle">Circle</option>
+                <option value="square">Square</option>
+              </select>
+            </div>
+          )}
           <button
             type="button"
             onClick={openAdd}

@@ -1,6 +1,7 @@
 import Image from "next/image";
 import Link from "next/link";
 import { ExternalLink } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export type ShowcaseGridItem = {
   id: string;
@@ -57,45 +58,74 @@ function normalizeItems(raw: unknown[]): ShowcaseGridItem[] {
   });
 }
 
+const GRID_COLS_CLASS: Record<number, string> = {
+  3: "md:grid-cols-2 lg:grid-cols-3",
+  4: "md:grid-cols-2 lg:grid-cols-4",
+  5: "md:grid-cols-3 lg:grid-cols-5",
+};
+
 export function ShowcaseGrid({ type, items: rawItems, displayOptions }: ShowcaseGridProps) {
   const items = normalizeItems(Array.isArray(rawItems) ? rawItems : []);
   if (items.length === 0) return null;
 
   const hideSectionTitle = displayOptions?.hide_showcase_title === true;
+  const gridColumns = Math.min(5, Math.max(3, Number(displayOptions?.grid_columns) || 3));
+  const imageShape = (displayOptions?.image_shape as string) === "square" ? "square" : "circle";
+  const gridClass = `grid grid-cols-1 gap-6 ${GRID_COLS_CLASS[gridColumns] ?? GRID_COLS_CLASS[3]}`;
+  const isDense = gridColumns >= 4;
+  const widthClass =
+    gridColumns >= 5
+      ? "max-w-[115rem]"
+      : gridColumns === 4
+        ? "max-w-[90rem]"
+        : "max-w-5xl";
+  const sectionClass = cn("mx-auto px-4 py-12 sm:px-6 lg:px-8", widthClass);
+  const breakoutWrapperClass =
+    "relative left-1/2 right-1/2 -ml-[50vw] -mr-[50vw] w-screen overflow-x-hidden";
 
   if (type === "people") {
+    const imageRoundClass = imageShape === "square" ? "rounded-xl" : "rounded-full";
     return (
-      <section className="mx-auto max-w-4xl px-4 py-12 sm:px-6 lg:px-8" aria-label="Hall of Fame">
-        {!hideSectionTitle && (
-          <h2 className="font-serif text-2xl font-semibold text-hot-white mb-8 text-center md:text-3xl">
-            Hall of Fame
-          </h2>
-        )}
-        <div className="grid gap-8 sm:grid-cols-2 lg:grid-cols-3">
+      <div className={breakoutWrapperClass}>
+        <section className={sectionClass} aria-label="Hall of Fame">
+          {!hideSectionTitle && (
+            <h2 className="font-serif text-2xl font-semibold text-hot-white mb-8 text-center md:text-3xl">
+              Hall of Fame
+            </h2>
+          )}
+          <div className={gridClass}>
           {items.map((item) => {
             const badgeClasses = BADGE_COLOR_MAP[item.badge_color ?? "gray"] ?? BADGE_COLOR_MAP.gray;
             const cardContent = (
               <>
-                <div className="relative mb-4 h-32 w-32 overflow-hidden rounded-full border-2 border-white/20">
+                <div
+                  className={cn(
+                    "relative mx-auto mb-5 aspect-square overflow-hidden border-2 border-white/20",
+                    imageRoundClass,
+                    isDense
+                      ? "w-28 min-w-28 min-h-28"
+                      : "w-32 min-w-32 min-h-32 sm:w-40 sm:min-w-40 sm:min-h-40"
+                  )}
+                >
                   {item.image ? (
                     <Image
                       src={item.image}
                       alt=""
                       fill
                       className="object-cover"
-                      sizes="128px"
+                      sizes="(max-width: 640px) 128px, 160px"
                     />
                   ) : (
                     <div className="h-full w-full bg-white/10" />
                   )}
                 </div>
                 {!item.hide_title && (
-                  <h3 className="font-serif text-xl font-semibold text-hot-white">
+                  <h3 className={`font-serif font-semibold text-hot-white ${isDense ? "text-lg" : "text-xl"}`}>
                     {item.title}
                   </h3>
                 )}
                 {item.subtitle && (
-                  <p className="mt-1 font-sans text-sm text-gray-400">
+                  <p className={`mt-1 font-sans text-gray-400 ${isDense ? "text-xs" : "text-sm"}`}>
                     {item.subtitle}
                   </p>
                 )}
@@ -105,13 +135,14 @@ export function ShowcaseGrid({ type, items: rawItems, displayOptions }: Showcase
                   </span>
                 )}
                 {item.description && (
-                  <p className="mt-3 font-sans text-sm text-gray-500 line-clamp-3">
+                  <p className={`mt-3 font-sans text-gray-500 line-clamp-3 ${isDense ? "text-xs" : "text-sm"}`}>
                     {item.description}
                   </p>
                 )}
               </>
             );
-            const className = "flex flex-col items-center rounded-2xl border border-white/10 bg-hot-black/40 p-6 text-center shadow-lg transition-colors hover:border-white/20";
+            const cardPadding = isDense ? "p-4" : "p-6";
+            const className = `flex flex-col items-center rounded-2xl border border-white/10 bg-hot-black/40 ${cardPadding} text-center shadow-lg transition-colors hover:border-white/20`;
             if (item.link) {
               return (
                 <a
@@ -131,20 +162,24 @@ export function ShowcaseGrid({ type, items: rawItems, displayOptions }: Showcase
               </article>
             );
           })}
-        </div>
-      </section>
+          </div>
+        </section>
+      </div>
     );
   }
 
   // Products: Tech Grid — landscape cards, badge overlays, Buy/View
+  const productCardPadding = isDense ? "p-3" : "p-4";
+  const productTitleClass = isDense ? "font-serif text-base font-semibold" : "font-serif text-lg font-semibold";
   return (
-    <section className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8" aria-label="Showcase">
-      {!hideSectionTitle && (
-        <h2 className="font-serif text-2xl font-semibold text-hot-white mb-8 text-center md:text-3xl">
-          The Lineup
-        </h2>
-      )}
-      <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+    <div className={breakoutWrapperClass}>
+      <section className={sectionClass} aria-label="Showcase">
+        {!hideSectionTitle && (
+          <h2 className="font-serif text-2xl font-semibold text-hot-white mb-8 text-center md:text-3xl">
+            The Lineup
+          </h2>
+        )}
+        <div className={gridClass}>
         {items.map((item) => {
           const badgeClasses = BADGE_COLOR_MAP[item.badge_color ?? "gray"] ?? BADGE_COLOR_MAP.gray;
           return (
@@ -170,19 +205,19 @@ export function ShowcaseGrid({ type, items: rawItems, displayOptions }: Showcase
                   </span>
                 )}
               </div>
-              <div className="flex flex-1 flex-col p-4">
+              <div className={`flex flex-1 flex-col ${productCardPadding}`}>
                 {!item.hide_title && (
-                  <h3 className="font-serif text-lg font-semibold text-hot-white">
+                  <h3 className={`${productTitleClass} text-hot-white`}>
                     {item.title}
                   </h3>
                 )}
                 {item.subtitle && (
-                  <p className="mt-0.5 font-sans text-sm text-gray-400">
+                  <p className={`mt-0.5 font-sans text-gray-400 ${isDense ? "text-xs" : "text-sm"}`}>
                     {item.subtitle}
                   </p>
                 )}
                 {item.description && (
-                  <p className="mt-2 font-sans text-sm text-gray-500 line-clamp-2">
+                  <p className={`mt-2 font-sans text-gray-500 line-clamp-2 ${isDense ? "text-xs" : "text-sm"}`}>
                     {item.description}
                   </p>
                 )}
@@ -201,7 +236,8 @@ export function ShowcaseGrid({ type, items: rawItems, displayOptions }: Showcase
             </article>
           );
         })}
-      </div>
-    </section>
+        </div>
+      </section>
+    </div>
   );
 }
