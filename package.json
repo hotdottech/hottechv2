@@ -9,6 +9,9 @@
     "lint": "eslint"
   },
   "dependencies": {
+    "@dnd-kit/core": "^6.3.1",
+    "@dnd-kit/sortable": "^10.0.0",
+    "@dnd-kit/utilities": "^3.2.2",
     "@react-email/components": "^1.0.7",
     "@sanity/vision": "^5.9.0",
     "@supabase/ssr": "^0.8.0",
@@ -21,6 +24,7 @@
     "browser-image-compression": "^2.0.2",
     "clsx": "^2.1.1",
     "date-fns": "^4.1.0",
+    "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.34.0",
     "iconsax-react": "^0.0.8",
     "lucide-react": "^0.563.0",

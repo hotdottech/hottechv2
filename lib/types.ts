@@ -23,6 +23,29 @@ export interface FeatureGridBlockData {
   postIds?: string[];
 }
 
+/** Single slide in the timeline block. */
+export interface TimelineSlide {
+  id: string;
+  year: string;
+  title: string;
+  description: string;
+  image?: string;
+}
+
+/** Timeline block data (stored in block.data). */
+export interface TimelineBlockData {
+  slides?: TimelineSlide[];
+}
+
+/** Smart feed block data (stored in block.data). */
+export interface SmartFeedBlockData {
+  title?: string;
+  categoryId?: number | null;
+  tagId?: number | null;
+  typeId?: number | null;
+  limit?: number;
+}
+
 export interface FeedItem {
   id: string;
   title: string;

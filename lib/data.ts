@@ -153,6 +153,226 @@ export async function getPostsByIds(ids: string[]): Promise<FeedItem[]> {
   });
 }
 
+/** Filters for smart feed. */
+export type SmartFeedFilters = {
+  categoryId?: number | null;
+  tagId?: number | null;
+  typeId?: number | null;
+  limit?: number;
+};
+
+/** Fetch published posts filtered by category, tag, and/or content type. All filters are AND. */
+export async function getSmartFeedPosts(
+  filters: SmartFeedFilters
+): Promise<FeedItem[]> {
+  const categoryId = filters?.categoryId;
+  const tagId = filters?.tagId;
+  const typeId = filters?.typeId;
+  const limitParam = filters?.limit;
+  const limitNum = Math.min(
+    Math.max(Number(limitParam) || 6, 1),
+    24
+  );
+
+  const hasCategory = categoryId != null && categoryId !== undefined && Number.isFinite(categoryId);
+  const hasTag = tagId != null && tagId !== undefined && Number.isFinite(tagId);
+  const hasType = typeId != null && typeId !== undefined && Number.isFinite(typeId);
+
+  let postIds: string[] | null = null;
+
+  if (hasCategory) {
+    const { data, error } = await supabase
+      .from("post_categories")
+      .select("post_id")
+      .eq("category_id", categoryId);
+    if (error) {
+      console.error("[getSmartFeedPosts] category", error);
+      return [];
+    }
+    postIds = (data ?? []).map((r) => String(r.post_id));
+  }
+
+  if (hasTag) {
+    const { data, error } = await supabase
+      .from("post_tags")
+      .select("post_id")
+      .eq("tag_id", tagId);
+    if (error) {
+      console.error("[getSmartFeedPosts] tag", error);
+      return [];
+    }
+    const tagPostIds = new Set((data ?? []).map((r) => String(r.post_id)));
+    postIds = postIds === null ? [...tagPostIds] : postIds.filter((id) => tagPostIds.has(id));
+  }
+
+  if (hasType) {
+    const { data, error } = await supabase
+      .from("post_content_types")
+      .select("post_id")
+      .eq("content_type_id", typeId);
+    if (error) {
+      console.error("[getSmartFeedPosts] type", error);
+      return [];
+    }
+    const typePostIds = new Set((data ?? []).map((r) => String(r.post_id)));
+    postIds = postIds === null ? [...typePostIds] : postIds.filter((id) => typePostIds.has(id));
+  }
+
+  if (postIds !== null && postIds.length === 0) return [];
+
+  const query = supabase
+    .from("posts")
+    .select("id, title, slug, excerpt, main_image, featured_image, original_url, published_at, created_at, updated_at, source_name")
+    .eq("status", "published")
+    .order("published_at", { ascending: false })
+    .limit(limitNum);
+
+  if (postIds !== null) {
+    query.in("id", postIds);
+  }
+
+  const { data, error } = await query;
+
+  if (error) {
+    console.error("[getSmartFeedPosts]", error);
+    return [];
+  }
+
+  return (data ?? []).map((post) => {
+    const date = post.published_at ?? post.created_at ?? post.updated_at ?? new Date().toISOString();
+    const hasExternalUrl = post.original_url != null && String(post.original_url).trim() !== "";
+    const url = hasExternalUrl ? String(post.original_url) : `/${post.slug ?? post.id}`;
+    const image = post.featured_image ?? post.main_image ?? undefined;
+    const type = hasExternalUrl ? ("external-article" as const) : ("post" as const);
+    return {
+      id: post.id,
+      title: post.title ?? "Untitled",
+      excerpt: post.excerpt ?? undefined,
+      date,
+      type,
+      source: "internal" as const,
+      url,
+      image,
+      publisher: post.source_name ?? "House of Tech",
+    };
+  });
+}
+
+export type ArchiveResult = {
+  title: string;
+  description: string;
+  posts: FeedItem[];
+};
+
+/** Fetch published posts for a taxonomy (category, tag, or content_type) by slug. */
+export async function getPostsByTaxonomy(
+  type: "category" | "tag" | "content_type",
+  slug: string
+): Promise<ArchiveResult | null> {
+  const s = (slug ?? "").trim();
+  if (!s) return null;
+
+  let id: number;
+  let name: string;
+
+  if (type === "category") {
+    const { data, error } = await supabase
+      .from("categories")
+      .select("id, name")
+      .eq("slug", s)
+      .maybeSingle();
+    if (error || !data) return null;
+    id = data.id;
+    name = data.name ?? s;
+  } else if (type === "tag") {
+    const { data, error } = await supabase
+      .from("tags")
+      .select("id, name")
+      .eq("slug", s)
+      .maybeSingle();
+    if (error || !data) return null;
+    id = data.id;
+    name = data.name ?? s;
+  } else {
+    const { data, error } = await supabase
+      .from("content_types")
+      .select("id, name")
+      .eq("slug", s)
+      .maybeSingle();
+    if (error || !data) return null;
+    id = data.id;
+    name = data.name ?? s;
+  }
+
+  let postIds: string[] = [];
+  if (type === "category") {
+    const { data, error } = await supabase
+      .from("post_categories")
+      .select("post_id")
+      .eq("category_id", id);
+    if (error) return null;
+    postIds = (data ?? []).map((r) => String(r.post_id));
+  } else if (type === "tag") {
+    const { data, error } = await supabase
+      .from("post_tags")
+      .select("post_id")
+      .eq("tag_id", id);
+    if (error) return null;
+    postIds = (data ?? []).map((r) => String(r.post_id));
+  } else {
+    const { data, error } = await supabase
+      .from("post_content_types")
+      .select("post_id")
+      .eq("content_type_id", id);
+    if (error) return null;
+    postIds = (data ?? []).map((r) => String(r.post_id));
+  }
+
+  if (postIds.length === 0) {
+    return { title: name, description: `All our latest ${name}.`, posts: [] };
+  }
+
+  const { data: rows, error } = await supabase
+    .from("posts")
+    .select("id, title, slug, excerpt, main_image, featured_image, original_url, published_at, created_at, updated_at, source_name")
+    .in("id", postIds)
+    .eq("status", "published")
+    .order("published_at", { ascending: false });
+
+  if (error) {
+    console.error("[getPostsByTaxonomy]", error);
+    return null;
+  }
+
+  const posts: FeedItem[] = (rows ?? []).map((post) => {
+    const date = post.published_at ?? post.created_at ?? post.updated_at ?? new Date().toISOString();
+    const hasExternalUrl = post.original_url != null && String(post.original_url).trim() !== "";
+    const url = hasExternalUrl ? String(post.original_url) : `/${post.slug ?? post.id}`;
+    const image = post.featured_image ?? post.main_image ?? undefined;
+    const feedType = hasExternalUrl ? ("external-article" as const) : ("post" as const);
+    return {
+      id: post.id,
+      title: post.title ?? "Untitled",
+      excerpt: post.excerpt ?? undefined,
+      date,
+      type: feedType,
+      source: "internal" as const,
+      url,
+      image,
+      publisher: post.source_name ?? "House of Tech",
+    };
+  });
+
+  const description =
+    type === "category"
+      ? `All our latest ${name}.`
+      : type === "tag"
+        ? `All posts tagged ${name}.`
+        : `All our latest ${name}.`;
+
+  return { title: name, description, posts };
+}
+
 /** Published posts from Supabase for the unified feed. */
 export async function getSupabasePosts(): Promise<FeedItem[]> {
   const { data, error } = await supabase
