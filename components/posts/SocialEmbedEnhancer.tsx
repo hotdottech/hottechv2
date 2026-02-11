@@ -5,7 +5,14 @@ import { useEffect } from "react";
 declare global {
   interface Window {
     twttr?: {
-      widgets: { load: (element?: HTMLElement) => void };
+      widgets: {
+        load: (element?: HTMLElement) => void;
+        createTweet: (
+          tweetId: string,
+          container: HTMLElement,
+          options?: { theme?: string; align?: string }
+        ) => Promise<HTMLElement | null>;
+      };
     };
   }
 }
@@ -30,9 +37,17 @@ function loadScript(src: string, onload?: () => void): void {
   document.head.appendChild(script);
 }
 
-function loadTwitterWidgetsForElement(element: HTMLElement): void {
-  if (typeof window === "undefined" || !window.twttr?.widgets?.load) return;
-  window.twttr.widgets.load(element);
+function getTweetId(url: string): string | null {
+  const m = url.match(/\/status\/(\d+)/);
+  return m ? m[1] : null;
+}
+
+function renderTweet(container: HTMLElement, tweetId: string): void {
+  if (typeof window === "undefined" || !window.twttr?.widgets?.createTweet) return;
+  window.twttr.widgets.createTweet(tweetId, container, {
+    theme: "dark",
+    align: "center",
+  });
 }
 
 function getTikTokVideoId(url: string): string | null {
@@ -66,25 +81,24 @@ function enhanceInstagram(el: HTMLElement, url: string): void {
 }
 
 function enhanceTwitter(el: HTMLElement, url: string): void {
-  const blockquote = document.createElement("blockquote");
-  blockquote.className = "twitter-tweet";
-  blockquote.setAttribute("data-dnt", "true");
-  blockquote.setAttribute("data-theme", "dark");
-  const anchor = document.createElement("a");
-  anchor.href = url;
-  blockquote.appendChild(anchor);
-  el.replaceWith(blockquote);
+  const tweetId = getTweetId(url);
+  if (!tweetId) return;
+
+  const container = document.createElement("div");
+  container.className = "twitter-embed-container";
+  container.style.minHeight = "250px";
+  container.style.display = "flex";
+  container.style.justifyContent = "center";
+  el.replaceWith(container);
 
   const TWITTER_SCRIPT = "https://platform.twitter.com/widgets.js";
-  const runLoad = () => loadTwitterWidgetsForElement(blockquote);
+  const runCreate = () => renderTweet(container, tweetId);
 
-  setTimeout(() => {
-    if (typeof window !== "undefined" && window.twttr?.widgets?.load) {
-      runLoad();
-    } else {
-      loadScript(TWITTER_SCRIPT, runLoad);
-    }
-  }, 50);
+  if (typeof window !== "undefined" && window.twttr?.widgets?.createTweet) {
+    runCreate();
+  } else {
+    loadScript(TWITTER_SCRIPT, runCreate);
+  }
 }
 
 export function SocialEmbedEnhancer() {
