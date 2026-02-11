@@ -233,7 +233,10 @@ export function RichTextEditor({
           <Share2 className="h-4 w-4" />
         </ToolbarButton>
       </div>
-      <EditorContent editor={editor} className="[&_.ProseMirror_img]:max-w-full [&_.ProseMirror_img]:h-auto [&_.ProseMirror_img]:rounded-md [&_.content-card]:my-4 [&_.youtube-embed]:my-4" />
+      <EditorContent
+        editor={editor}
+        className="prose prose-invert max-w-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h1]:text-3xl [&_h2]:text-2xl [&_h3]:text-xl [&_.ProseMirror_img]:max-w-full [&_.ProseMirror_img]:h-auto [&_.ProseMirror_img]:rounded-md [&_.content-card]:my-4 [&_.youtube-embed]:my-4"
+      />
 
       <MediaPickerModal
         isOpen={imagePickerOpen}

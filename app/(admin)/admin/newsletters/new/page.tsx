@@ -1,19 +1,12 @@
-import Link from "next/link";
-import { NewsletterNewForm } from "./newsletter-new-form";
+import { NewsletterForm } from "@/components/admin/newsletters/NewsletterForm";
 
 export default function NewNewsletterPage() {
   return (
-    <div className="space-y-6 p-6 lg:p-10">
-      <Link
-        href="/admin/newsletters"
-        className="font-sans text-sm text-gray-400 hover:text-hot-white"
-      >
-        ← Campaigns
-      </Link>
-      <h1 className="font-serif text-2xl font-bold text-hot-white">
+    <div className="p-6 lg:p-10">
+      <h1 className="mb-6 font-serif text-2xl font-bold text-hot-white">
         New Newsletter
       </h1>
-      <NewsletterNewForm />
+      <NewsletterForm />
     </div>
   );
 }

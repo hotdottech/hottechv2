@@ -18,6 +18,8 @@ export type NewsletterRow = {
   sent_at: string | null;
   /** Display date: sent_at when status is 'sent', otherwise created_at. */
   date: string | null;
+  /** Audience targeting: { type: 'all' | 'filter' | 'manual', filters?, manual_ids? } */
+  target_config: Record<string, unknown> | null;
 };
 
 export async function getStats(): Promise<{ count: number }> {
@@ -38,7 +40,7 @@ export async function getNewsletters(): Promise<NewsletterRow[]> {
   const client = await createClient();
   const { data, error } = await client
     .from("newsletters")
-    .select("id, subject, slug, preview_text, content, featured_image, status, created_at, updated_at, sent_at")
+    .select("id, subject, slug, preview_text, content, featured_image, status, created_at, updated_at, sent_at, target_config")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -56,7 +58,7 @@ export async function getNewsletterById(id: string): Promise<NewsletterRow | nul
   const client = await createClient();
   const { data, error } = await client
     .from("newsletters")
-    .select("id, subject, slug, preview_text, content, featured_image, status, created_at, updated_at, sent_at")
+    .select("id, subject, slug, preview_text, content, featured_image, status, created_at, updated_at, sent_at, target_config")
     .eq("id", id)
     .maybeSingle();
 
@@ -147,6 +149,13 @@ export async function updateNewsletter(id: string, formData: FormData): Promise<
   const content = formData.get("content") as string;
   const featured_image = formData.get("featured_image") as string | null;
   const status = (formData.get("status") as string) || "draft";
+  let target_config: Record<string, unknown> | undefined;
+  try {
+    const raw = formData.get("target_config");
+    if (typeof raw === "string" && raw) target_config = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    // omit
+  }
 
   const { error } = await client
     .from("newsletters")
@@ -156,6 +165,7 @@ export async function updateNewsletter(id: string, formData: FormData): Promise<
       ...(preview_text != null && { preview_text: preview_text || null }),
       ...(content != null && { content }),
       ...(featured_image !== undefined && { featured_image: featured_image?.trim() || null }),
+      ...(target_config !== undefined && { target_config: target_config ?? {} }),
       status,
       updated_at: new Date().toISOString(),
     })
@@ -187,10 +197,37 @@ export async function sendTestEmail(
   const newsletter = await getNewsletterBySlugOrId(slug);
   if (!newsletter) return { error: "Newsletter not found." };
 
+  return sendTestEmailWithPayload(
+    {
+      subject: newsletter.subject ?? "Newsletter",
+      content: newsletter.content ?? "",
+      previewText: newsletter.preview_text ?? newsletter.subject ?? "Newsletter",
+      slug: newsletter.slug ?? newsletter.id,
+    },
+    email
+  );
+}
+
+export type TestEmailPayload = {
+  subject: string;
+  content: string;
+  previewText: string;
+  slug?: string;
+};
+
+/** Send a test email with the given payload (no save required). */
+export async function sendTestEmailWithPayload(
+  payload: TestEmailPayload,
+  email: string
+): Promise<{ error?: string }> {
+  const client = await createClient();
+  const { data: { user } } = await client.auth.getUser();
+  if (!user) return { error: "Unauthorized." };
+
   if (!process.env.RESEND_API_KEY) return { error: "RESEND_API_KEY is not set." };
 
-  const subject = newsletter.subject ?? "Newsletter";
-  const slugVal = newsletter.slug ?? newsletter.id;
+  const subject = payload.subject?.trim() || "Newsletter";
+  const slugVal = payload.slug?.trim() || "preview";
   const baseUrl = getBaseUrl();
 
   const { data: subscriber } = await client
@@ -208,8 +245,8 @@ export async function sendTestEmail(
     subject: `[TEST] ${subject}`,
     react: WeeklyNewsletter({
       subject,
-      previewText: newsletter.preview_text ?? subject,
-      content: newsletter.content ?? "",
+      previewText: payload.previewText?.trim() ?? subject,
+      content: payload.content ?? "",
       slug: slugVal,
       email: email.trim(),
       unsubscribeUrl,
@@ -218,7 +255,7 @@ export async function sendTestEmail(
   });
 
   if (error) {
-    console.error("[sendTestEmail]", error);
+    console.error("[sendTestEmailWithPayload]", error);
     return { error: error.message };
   }
   return {};
