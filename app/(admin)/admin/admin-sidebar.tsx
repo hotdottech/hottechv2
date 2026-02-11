@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { SyncButton } from "@/app/components/admin/SyncButton";
 import { signOut } from "./actions";
 import { cn } from "@/lib/utils";
 
@@ -84,7 +85,8 @@ export function AdminSidebar({ userEmail }: { userEmail: string }) {
         </div>
       </nav>
       <div className="border-t border-white/10 p-3">
-        <p className="truncate px-3 py-1 font-sans text-xs text-gray-400">
+        <SyncButton />
+        <p className="mt-3 truncate px-3 py-1 font-sans text-xs text-gray-400">
           {userEmail}
         </p>
         <form action={signOut} className="mt-2">

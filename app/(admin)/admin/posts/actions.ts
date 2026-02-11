@@ -48,6 +48,12 @@ export type PostRow = {
   status: string | null;
   created_at: string | null;
   updated_at: string | null;
+  published_at: string | null;
+  source_name: string | null;
+  original_url: string | null;
+  meta_title: string | null;
+  meta_description: string | null;
+  canonical_url: string | null;
 };
 
 export async function getPosts(): Promise<PostRow[]> {
@@ -75,7 +81,7 @@ export async function getPostById(id: string): Promise<PostRow | null> {
   const client = await createClient();
   const { data, error } = await client
     .from("posts")
-    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at")
+    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at, published_at, source_name, original_url, meta_title, meta_description, canonical_url")
     .eq("id", id)
     .maybeSingle();
 
@@ -152,6 +158,12 @@ export async function updatePost(
   const body = formData.get("body") as string;
   const featured_image = (formData.get("featured_image") as string) || null;
   const status = (formData.get("status") as string) || "draft";
+  const published_at = (formData.get("published_at") as string) || null;
+  const source_name = (formData.get("source_name") as string)?.trim() || null;
+  const original_url = (formData.get("original_url") as string)?.trim() || null;
+  const meta_title = (formData.get("meta_title") as string)?.trim() || null;
+  const meta_description = (formData.get("meta_description") as string)?.trim() || null;
+  const canonical_url = (formData.get("canonical_url") as string)?.trim() || null;
 
   const payload: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
@@ -161,6 +173,12 @@ export async function updatePost(
     excerpt: excerpt ?? null,
     slug: slug ?? null,
     title: title ?? undefined,
+    ...(published_at && { published_at: new Date(published_at).toISOString() }),
+    source_name,
+    original_url,
+    meta_title,
+    meta_description,
+    canonical_url,
   };
 
   const client = await createClient();

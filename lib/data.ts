@@ -119,7 +119,7 @@ export async function getAuthoryFeed(): Promise<FeedItem[]> {
 export async function getSupabasePosts(): Promise<FeedItem[]> {
   const { data, error } = await supabase
     .from("posts")
-    .select("id, title, slug, excerpt, main_image, created_at, updated_at")
+    .select("id, title, slug, excerpt, main_image, featured_image, original_url, published_at, created_at, updated_at, type, source_name")
     .eq("status", "published")
     .order("created_at", { ascending: false });
 
@@ -128,17 +128,24 @@ export async function getSupabasePosts(): Promise<FeedItem[]> {
     return [];
   }
 
-  return (data ?? []).map((post) => ({
-    id: post.id,
-    title: post.title ?? "Untitled",
-    excerpt: post.excerpt ?? undefined,
-    date: post.updated_at ?? post.created_at ?? new Date().toISOString(),
-    type: "post" as const,
-    source: "internal" as const,
-    url: `/${post.slug ?? post.id}`,
-    image: post.main_image ?? undefined,
-    publisher: "Hot Tech",
-  }));
+  return (data ?? []).map((post) => {
+    const date = post.published_at ?? post.created_at ?? post.updated_at ?? new Date().toISOString();
+    const hasExternalUrl = post.original_url != null && String(post.original_url).trim() !== "";
+    const url = hasExternalUrl ? String(post.original_url) : `/${post.slug ?? post.id}`;
+    const image = post.featured_image ?? post.main_image ?? undefined;
+    const type = hasExternalUrl ? ("external-article" as const) : ("post" as const);
+    return {
+      id: post.id,
+      title: post.title ?? "Untitled",
+      excerpt: post.excerpt ?? undefined,
+      date,
+      type,
+      source: "internal" as const,
+      url,
+      image,
+      publisher: post.source_name ?? "House of Tech",
+    };
+  });
 }
 
 export type SupabasePost = {

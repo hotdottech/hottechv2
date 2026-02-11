@@ -5,6 +5,16 @@ import { useRouter } from "next/navigation";
 import { TiptapEditor } from "@/components/editor/tiptap-editor";
 import { updatePost, uploadPostImage, type PostRow } from "./actions";
 import { compressImage } from "@/lib/image-compression";
+
+function toDatetimeLocal(iso: string | null): string {
+  if (!iso) return "";
+  try {
+    return new Date(iso).toISOString().slice(0, 16);
+  } catch {
+    return "";
+  }
+}
+
 export function EditPostForm({ post }: { post: PostRow }) {
   const router = useRouter();
   const [title, setTitle] = useState(post.title ?? "");
@@ -14,11 +24,18 @@ export function EditPostForm({ post }: { post: PostRow }) {
   const [status, setStatus] = useState<"draft" | "published">(
     (post.status as "draft" | "published") || "draft"
   );
+  const [publishedAt, setPublishedAt] = useState(toDatetimeLocal(post.published_at));
+  const [sourceName, setSourceName] = useState(post.source_name ?? "");
+  const [originalUrl, setOriginalUrl] = useState(post.original_url ?? "");
+  const [metaTitle, setMetaTitle] = useState(post.meta_title ?? "");
+  const [metaDescription, setMetaDescription] = useState(post.meta_description ?? "");
+  const [canonicalUrl, setCanonicalUrl] = useState(post.canonical_url ?? "");
   const [featuredImageUrl, setFeaturedImageUrl] = useState<string | null>(
     post.featured_image
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [seoOpen, setSeoOpen] = useState(false);
   const featuredInputRef = useRef<HTMLInputElement>(null);
 
   function slugify(text: string) {
@@ -55,6 +72,12 @@ export function EditPostForm({ post }: { post: PostRow }) {
     formData.set("body", body);
     formData.set("featured_image", featuredImageUrl ?? "");
     formData.set("status", asDraft ? "draft" : "published");
+    if (publishedAt) formData.set("published_at", publishedAt);
+    formData.set("source_name", sourceName);
+    formData.set("original_url", originalUrl);
+    formData.set("meta_title", metaTitle);
+    formData.set("meta_description", metaDescription);
+    formData.set("canonical_url", canonicalUrl);
     const result = await updatePost(post.id, formData);
     setSaving(false);
     if (result.error) {
@@ -81,6 +104,18 @@ export function EditPostForm({ post }: { post: PostRow }) {
         </div>
         <div>
           <label className="block font-sans text-sm font-medium text-gray-400">
+            Excerpt
+          </label>
+          <textarea
+            value={excerpt}
+            onChange={(e) => setExcerpt(e.target.value)}
+            placeholder="Short summary…"
+            rows={3}
+            className="mt-2 w-full resize-y rounded-md border border-white/10 bg-hot-gray px-4 py-3 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none focus:ring-1 focus:ring-hot-white/20"
+          />
+        </div>
+        <div>
+          <label className="block font-sans text-sm font-medium text-gray-400">
             Body
           </label>
           <TiptapEditor
@@ -98,6 +133,46 @@ export function EditPostForm({ post }: { post: PostRow }) {
             {error}
           </div>
         )}
+
+        <div className="rounded-lg border border-white/10 bg-white/5 p-4">
+          <h3 className="font-sans text-sm font-medium text-hot-white">
+            Publish Date
+          </h3>
+          <input
+            type="datetime-local"
+            value={publishedAt}
+            onChange={(e) => setPublishedAt(e.target.value)}
+            className="mt-3 w-full rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white focus:border-hot-white/30 focus:outline-none"
+          />
+        </div>
+
+        <div className="rounded-lg border border-white/10 bg-white/5 p-4">
+          <h3 className="font-sans text-sm font-medium text-hot-white">
+            Publication Info
+          </h3>
+          <div className="mt-3 space-y-2">
+            <div>
+              <label className="block font-sans text-xs text-gray-500">Source</label>
+              <input
+                type="text"
+                value={sourceName}
+                onChange={(e) => setSourceName(e.target.value)}
+                placeholder="e.g. Forbes, Authory"
+                className="mt-1 w-full rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
+              />
+            </div>
+            <div>
+              <label className="block font-sans text-xs text-gray-500">Original URL</label>
+              <input
+                type="url"
+                value={originalUrl}
+                onChange={(e) => setOriginalUrl(e.target.value)}
+                placeholder="https://…"
+                className="mt-1 w-full rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
+              />
+            </div>
+          </div>
+        </div>
 
         <div className="rounded-lg border border-white/10 bg-white/5 p-4">
           <h3 className="font-sans text-sm font-medium text-hot-white">
@@ -156,16 +231,48 @@ export function EditPostForm({ post }: { post: PostRow }) {
         </div>
 
         <div className="rounded-lg border border-white/10 bg-white/5 p-4">
-          <h3 className="font-sans text-sm font-medium text-hot-white">
-            Excerpt
-          </h3>
-          <textarea
-            value={excerpt}
-            onChange={(e) => setExcerpt(e.target.value)}
-            placeholder="Short summary…"
-            rows={3}
-            className="mt-3 w-full resize-y rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
-          />
+          <button
+            type="button"
+            onClick={() => setSeoOpen((o) => !o)}
+            className="flex w-full items-center justify-between font-sans text-sm font-medium text-hot-white"
+          >
+            SEO
+            <span className="text-gray-400">{seoOpen ? "▼" : "▶"}</span>
+          </button>
+          {seoOpen && (
+            <div className="mt-3 space-y-2">
+              <div>
+                <label className="block font-sans text-xs text-gray-500">Meta Title</label>
+                <input
+                  type="text"
+                  value={metaTitle}
+                  onChange={(e) => setMetaTitle(e.target.value)}
+                  placeholder="Title for search results"
+                  className="mt-1 w-full rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-sans text-xs text-gray-500">Meta Description</label>
+                <textarea
+                  value={metaDescription}
+                  onChange={(e) => setMetaDescription(e.target.value)}
+                  placeholder="Short description for search results"
+                  rows={2}
+                  className="mt-1 w-full resize-y rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-sans text-xs text-gray-500">Canonical URL</label>
+                <input
+                  type="url"
+                  value={canonicalUrl}
+                  onChange={(e) => setCanonicalUrl(e.target.value)}
+                  placeholder="https://…"
+                  className="mt-1 w-full rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
+                />
+              </div>
+            </div>
+          )}
         </div>
 
         <div className="rounded-lg border border-white/10 bg-white/5 p-4">
