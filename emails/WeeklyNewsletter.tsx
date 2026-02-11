@@ -8,6 +8,7 @@ import {
   Hr,
   Head,
   Preview,
+  Img,
 } from "@react-email/components";
 
 const DEFAULT_BASE_URL = "https://hot.tech";
@@ -24,6 +25,8 @@ export interface WeeklyNewsletterProps {
   unsubscribeUrl: string;
   /** Base URL for links (e.g. https://hot.tech). Passed from server so env is available. */
   baseUrl?: string;
+  /** Tracking pixel URL for open tracking (per-recipient). */
+  trackingPixelUrl?: string;
 }
 
 const styles = {
@@ -43,6 +46,7 @@ export function WeeklyNewsletter({
   email,
   unsubscribeUrl,
   baseUrl = DEFAULT_BASE_URL,
+  trackingPixelUrl,
 }: WeeklyNewsletterProps) {
   const viewInBrowserUrl = `${baseUrl}/newsletters/${slug}`;
 
@@ -106,6 +110,15 @@ export function WeeklyNewsletter({
             <Text style={{ color: styles.dark.muted, fontSize: "12px", margin: 0 }}>
               © Hot Tech. You received this because you subscribed to our newsletter.
             </Text>
+            {trackingPixelUrl && (
+              <Img
+                src={trackingPixelUrl}
+                alt=""
+                width={1}
+                height={1}
+                style={{ display: "none" }}
+              />
+            )}
           </Section>
         </Container>
       </Section>

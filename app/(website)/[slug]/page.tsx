@@ -10,6 +10,7 @@ import { JsonLd } from "@/components/seo/JsonLd";
 import { PreviewBanner } from "@/components/posts/PreviewBanner";
 import { ShowcaseGrid } from "@/components/posts/ShowcaseGrid";
 import { SocialEmbedEnhancer } from "@/components/posts/SocialEmbedEnhancer";
+import { ViewTracker } from "@/components/analytics/ViewTracker";
 import { getBaseUrl } from "@/lib/url";
 import { createClient } from "@/utils/supabase/server";
 
@@ -84,6 +85,7 @@ export default async function ArticlePage({ params }: PageProps) {
   return (
     <>
       <JsonLd data={newsArticleSchema} />
+      <ViewTracker slug={post.slug} />
       <article className={`mx-auto max-w-4xl px-4 pt-8 sm:px-6 lg:px-8 ${isDraftPreview ? "pb-24" : "pb-16"}`}>
       {!hideHeader && (
         <>

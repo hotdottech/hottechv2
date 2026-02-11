@@ -7,6 +7,7 @@ const DELAY_MS = 600;
 
 export type SendBroadcastParams = {
   newsletter: {
+    id: string;
     subject: string;
     preview_text: string | null;
     content: string | null;
@@ -43,11 +44,15 @@ export async function sendBroadcast(
   let sent_count = 0;
   let error_count = 0;
 
+  const newsletterId = newsletter.id;
+
   for (const subscriber of subscribers) {
     await new Promise((resolve) => setTimeout(resolve, DELAY_MS));
 
     try {
       const unsubscribeUrl = `${baseUrl}/unsubscribe?id=${subscriber.id}`;
+      const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || baseUrl;
+      const trackingPixelUrl = `${siteUrl}/api/tracking/open?id=${newsletterId}&sub=${subscriber.id}`;
       const { error } = await resend.emails.send({
         from: fromEmail,
         to: [subscriber.email],
@@ -61,6 +66,7 @@ export async function sendBroadcast(
           email: subscriber.email,
           unsubscribeUrl,
           baseUrl,
+          trackingPixelUrl,
         }),
       });
       if (error) {

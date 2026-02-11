@@ -18,6 +18,7 @@ const otherLinks = [
   { href: "/admin/tags", label: "Tags" },
   { href: "/admin/content-types", label: "Content Types" },
   { href: "/admin/newsletters", label: "Newsletters" },
+  { href: "/admin/reporting", label: "Reporting" },
   { href: "/admin/media", label: "Media" },
   { href: "/admin/settings", label: "Settings" },
   { href: "/admin/subscribers", label: "Subscribers" },

@@ -288,6 +288,7 @@ export async function broadcastNewsletter(slug: string): Promise<{ error?: strin
   try {
     result = await sendBroadcast({
       newsletter: {
+        id: newsletter.id,
         subject: newsletter.subject ?? "Newsletter",
         preview_text: newsletter.preview_text,
         content: newsletter.content,
