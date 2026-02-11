@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { TiptapEditor } from "@/components/editor/tiptap-editor";
+import { RichTextEditor } from "@/components/admin/editor/RichTextEditor";
+import { UniversalImagePicker } from "@/app/components/admin/shared/UniversalImagePicker";
 import { updateNewsletter, type NewsletterRow } from "./actions";
 
 function slugify(text: string) {
@@ -19,6 +20,7 @@ export function EditNewsletterForm({ newsletter }: { newsletter: NewsletterRow }
   const [subject, setSubject] = useState(newsletter.subject ?? "");
   const [slug, setSlug] = useState(newsletter.slug ?? "");
   const [previewText, setPreviewText] = useState(newsletter.preview_text ?? "");
+  const [featuredImage, setFeaturedImage] = useState<string | null>(newsletter.featured_image ?? null);
   const [content, setContent] = useState(newsletter.content ?? "");
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
@@ -30,6 +32,7 @@ export function EditNewsletterForm({ newsletter }: { newsletter: NewsletterRow }
     formData.set("subject", subject);
     formData.set("slug", slug);
     formData.set("preview_text", previewText);
+    formData.set("featured_image", featuredImage ?? "");
     formData.set("content", content);
     formData.set("status", newsletter.status ?? "draft");
     const result = await updateNewsletter(newsletter.id, formData);
@@ -43,6 +46,13 @@ export function EditNewsletterForm({ newsletter }: { newsletter: NewsletterRow }
 
   return (
     <div className="mt-6 flex flex-col gap-6">
+      <div>
+        <UniversalImagePicker
+          value={featuredImage}
+          onChange={(url) => setFeaturedImage(url || null)}
+          label="Featured Image"
+        />
+      </div>
       <div>
         <label className="block font-sans text-sm font-medium text-gray-400">
           Subject
@@ -60,7 +70,7 @@ export function EditNewsletterForm({ newsletter }: { newsletter: NewsletterRow }
         <label className="block font-sans text-sm font-medium text-gray-400">
           Content
         </label>
-        <TiptapEditor
+        <RichTextEditor
           content={content}
           onChange={setContent}
           placeholder="Write your newsletter…"

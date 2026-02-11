@@ -21,7 +21,7 @@ type MediaItem = {
 type MediaPickerModalProps = {
   isOpen: boolean;
   onClose: () => void;
-  onSelect: (url: string) => void;
+  onSelect: (url: string, alt?: string) => void;
 };
 
 function getSupabase() {
@@ -60,8 +60,8 @@ export function MediaPickerModal({
   }, [isOpen, view, fetchImages]);
 
   const handleSelect = useCallback(
-    (url: string) => {
-      onSelect(url);
+    (url: string, alt?: string) => {
+      onSelect(url, alt);
       onClose();
     },
     [onSelect, onClose]
@@ -241,7 +241,7 @@ export function MediaPickerModal({
                     <button
                       key={item.id}
                       type="button"
-                      onClick={() => handleSelect(item.url)}
+                      onClick={() => handleSelect(item.url, item.alt_text ?? undefined)}
                       className="aspect-square overflow-hidden rounded-lg border border-white/10 bg-white/5 transition hover:border-white/30 hover:bg-white/10"
                     >
                       <img

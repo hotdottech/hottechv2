@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import { TiptapEditor } from "@/components/editor/tiptap-editor";
+import { RichTextEditor } from "@/components/admin/editor/RichTextEditor";
 import { AudienceSelector } from "@/components/admin/newsletters/AudienceSelector";
+import { UniversalImagePicker } from "@/app/components/admin/shared/UniversalImagePicker";
 import { createNewsletter } from "../actions";
 import type { TargetConfig } from "@/lib/actions/newsletter-audience";
 
@@ -21,6 +22,7 @@ export function NewsletterNewForm() {
   const [subject, setSubject] = useState("");
   const [slug, setSlug] = useState("");
   const [previewText, setPreviewText] = useState("");
+  const [featuredImage, setFeaturedImage] = useState<string | null>(null);
   const [content, setContent] = useState("");
   const [targetConfig, setTargetConfig] = useState<TargetConfig>({
     type: "all",
@@ -37,6 +39,7 @@ export function NewsletterNewForm() {
     formData.set("subject", subject);
     formData.set("slug", slug);
     formData.set("preview_text", previewText);
+    if (featuredImage) formData.set("featured_image", featuredImage);
     formData.set("content", content);
     formData.set("status", "draft");
     formData.set("target_config", JSON.stringify(targetConfig));
@@ -52,6 +55,13 @@ export function NewsletterNewForm() {
   return (
     <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
       <div className="min-w-0 flex-1 space-y-6 lg:max-w-[66.666%]">
+        <div>
+          <UniversalImagePicker
+            value={featuredImage}
+            onChange={(url) => setFeaturedImage(url || null)}
+            label="Featured Image"
+          />
+        </div>
         <div>
           <label className="block font-sans text-sm font-medium text-gray-400">
             Subject
@@ -71,7 +81,7 @@ export function NewsletterNewForm() {
           <label className="block font-sans text-sm font-medium text-gray-400">
             Content
           </label>
-          <TiptapEditor
+          <RichTextEditor
             content={content}
             onChange={setContent}
             placeholder="Write your newsletter…"

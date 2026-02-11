@@ -11,6 +11,7 @@ export type NewsletterRow = {
   slug: string | null;
   preview_text: string | null;
   content: string | null;
+  featured_image: string | null;
   status: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -37,11 +38,11 @@ export async function getNewsletters(): Promise<NewsletterRow[]> {
   const client = await createClient();
   const { data, error } = await client
     .from("newsletters")
-    .select("id, subject, slug, preview_text, content, status, created_at, updated_at, sent_at")
+    .select("id, subject, slug, preview_text, content, featured_image, status, created_at, updated_at, sent_at")
     .order("created_at", { ascending: false });
 
   if (error) {
-    console.error("[getNewsletters]", error);
+    console.error("[getNewsletters]", error.message ?? error, error.code, error.details);
     return [];
   }
   const rows = (data ?? []) as Omit<NewsletterRow, "date">[];
@@ -55,7 +56,7 @@ export async function getNewsletterById(id: string): Promise<NewsletterRow | nul
   const client = await createClient();
   const { data, error } = await client
     .from("newsletters")
-    .select("id, subject, slug, preview_text, content, status, created_at, updated_at, sent_at")
+    .select("id, subject, slug, preview_text, content, featured_image, status, created_at, updated_at, sent_at")
     .eq("id", id)
     .maybeSingle();
 
@@ -75,7 +76,7 @@ export async function getNewsletterBySlug(slug: string): Promise<NewsletterRow |
   const client = await createClient();
   const { data, error } = await client
     .from("newsletters")
-    .select("id, subject, slug, preview_text, content, status, created_at, updated_at, sent_at")
+    .select("id, subject, slug, preview_text, content, featured_image, status, created_at, updated_at, sent_at")
     .eq("slug", slug)
     .maybeSingle();
 
@@ -100,6 +101,7 @@ export async function createNewsletter(formData: FormData): Promise<{ id?: strin
   const slug = (formData.get("slug") as string)?.trim() ?? "";
   const preview_text = (formData.get("preview_text") as string)?.trim() ?? "";
   const content = (formData.get("content") as string) ?? "";
+  const featured_image = (formData.get("featured_image") as string)?.trim() || null;
   const status = (formData.get("status") as string) || "draft";
   let target_config: Record<string, unknown> = {};
   try {
@@ -118,6 +120,7 @@ export async function createNewsletter(formData: FormData): Promise<{ id?: strin
       slug: slug || null,
       preview_text: preview_text || null,
       content: content || null,
+      featured_image,
       status,
       target_config,
       created_at: new Date().toISOString(),
@@ -142,6 +145,7 @@ export async function updateNewsletter(id: string, formData: FormData): Promise<
   const slug = (formData.get("slug") as string)?.trim();
   const preview_text = (formData.get("preview_text") as string)?.trim();
   const content = formData.get("content") as string;
+  const featured_image = formData.get("featured_image") as string | null;
   const status = (formData.get("status") as string) || "draft";
 
   const { error } = await client
@@ -151,6 +155,7 @@ export async function updateNewsletter(id: string, formData: FormData): Promise<
       ...(slug != null && { slug: slug || null }),
       ...(preview_text != null && { preview_text: preview_text || null }),
       ...(content != null && { content }),
+      ...(featured_image !== undefined && { featured_image: featured_image?.trim() || null }),
       status,
       updated_at: new Date().toISOString(),
     })

@@ -2,7 +2,7 @@
 
 import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
-import { TiptapEditor } from "@/components/editor/tiptap-editor";
+import { RichTextEditor } from "@/components/admin/editor/RichTextEditor";
 import { updatePost, createPost, type PostRow } from "./actions";
 import { createTag } from "@/lib/actions/tags";
 import type { CategoryRow } from "@/lib/actions/categories";
@@ -206,7 +206,7 @@ export function EditPostForm({
           <label className="block font-sans text-sm font-medium text-gray-400">
             Body
           </label>
-          <TiptapEditor
+          <RichTextEditor
             content={body}
             onChange={setBody}
             placeholder="Write your story…"
