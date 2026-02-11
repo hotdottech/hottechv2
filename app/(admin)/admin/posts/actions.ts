@@ -62,6 +62,10 @@ export type PostRow = {
   meta_title: string | null;
   meta_description: string | null;
   canonical_url: string | null;
+  /** Showcase items (Best of / Awards). JSON array. */
+  showcase_data: unknown[];
+  /** Display options (e.g. hide_header for landing page). */
+  display_options: Record<string, unknown>;
 };
 
 export async function getPosts(): Promise<PostRow[]> {
@@ -89,7 +93,7 @@ export async function getPostById(id: string): Promise<PostRow | null> {
   const client = await createClient();
   const { data, error } = await client
     .from("posts")
-    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at, published_at, source_name, original_url, meta_title, meta_description, canonical_url")
+    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at, published_at, source_name, original_url, meta_title, meta_description, canonical_url, showcase_data, display_options")
     .eq("id", id)
     .maybeSingle();
 
@@ -98,10 +102,14 @@ export async function getPostById(id: string): Promise<PostRow | null> {
     return null;
   }
   if (!data) return null;
+  const showcaseData = data.showcase_data;
+  const displayOptions = data.display_options;
   return {
     ...data,
     body: data.content != null ? String(data.content) : null,
     featured_image: data.main_image != null ? String(data.main_image) : null,
+    showcase_data: Array.isArray(showcaseData) ? showcaseData : [],
+    display_options: displayOptions != null && typeof displayOptions === "object" && !Array.isArray(displayOptions) ? displayOptions as Record<string, unknown> : {},
   } as PostRow;
 }
 
@@ -192,6 +200,16 @@ export async function createPost(formData: FormData): Promise<{ id?: string; err
       ? parseInt(String(contentTypeIdRaw), 10)
       : null;
   const contentTypeIdValid = contentTypeId != null && !Number.isNaN(contentTypeId) ? contentTypeId : null;
+  const showcaseDataRaw = formData.get("showcase_data");
+  const showcaseData =
+    showcaseDataRaw != null && String(showcaseDataRaw).trim() !== ""
+      ? (JSON.parse(String(showcaseDataRaw)) as unknown[])
+      : [];
+  const displayOptionsRaw = formData.get("display_options");
+  const displayOptions =
+    displayOptionsRaw != null && String(displayOptionsRaw).trim() !== ""
+      ? (JSON.parse(String(displayOptionsRaw)) as Record<string, unknown>)
+      : {};
 
   if (!title) {
     return { error: "Title is required." };
@@ -222,6 +240,8 @@ export async function createPost(formData: FormData): Promise<{ id?: string; err
       meta_title,
       meta_description,
       canonical_url,
+      showcase_data: showcaseData,
+      display_options: displayOptions,
     })
     .select("id")
     .single();
@@ -279,6 +299,16 @@ export async function updatePost(
       ? parseInt(String(contentTypeIdRaw), 10)
       : null;
   const contentTypeIdValid = contentTypeId != null && !Number.isNaN(contentTypeId) ? contentTypeId : null;
+  const showcaseDataRaw = formData.get("showcase_data");
+  const showcaseData =
+    showcaseDataRaw != null && String(showcaseDataRaw).trim() !== ""
+      ? (JSON.parse(String(showcaseDataRaw)) as unknown[])
+      : null;
+  const displayOptionsRaw = formData.get("display_options");
+  const displayOptions =
+    displayOptionsRaw != null && String(displayOptionsRaw).trim() !== ""
+      ? (JSON.parse(String(displayOptionsRaw)) as Record<string, unknown>)
+      : null;
 
   if (!slug && title) {
     slug = slugify(title);
@@ -298,6 +328,8 @@ export async function updatePost(
     meta_title,
     meta_description,
     canonical_url,
+    ...(showcaseData !== null && { showcase_data: showcaseData }),
+    ...(displayOptions !== null && { display_options: displayOptions }),
   };
 
   const client = await createClient();

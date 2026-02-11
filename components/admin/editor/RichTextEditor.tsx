@@ -3,6 +3,7 @@
 import { useCallback, useState } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
+import TextAlign from "@tiptap/extension-text-align";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -14,6 +15,9 @@ import {
   List,
   Heading2,
   Heading3,
+  AlignLeft,
+  AlignCenter,
+  AlignRight,
   Link2,
   ImageIcon,
   Youtube,
@@ -96,6 +100,7 @@ export function RichTextEditor({
       PostCard,
       SocialCard,
       Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-hot-blue underline" } }),
+      TextAlign.configure({ types: ["heading", "paragraph"] }),
       Placeholder.configure({ placeholder }),
     ],
     content: content || "<p></p>",
@@ -214,6 +219,28 @@ export function RichTextEditor({
           title="Bullet list"
         >
           <List className="h-4 w-4" />
+        </ToolbarButton>
+        <span className="mx-1 h-5 w-px bg-white/10" />
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setTextAlign("left").run()}
+          active={editor.isActive({ textAlign: "left" })}
+          title="Align left"
+        >
+          <AlignLeft className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setTextAlign("center").run()}
+          active={editor.isActive({ textAlign: "center" })}
+          title="Align center"
+        >
+          <AlignCenter className="h-4 w-4" />
+        </ToolbarButton>
+        <ToolbarButton
+          onClick={() => editor.chain().focus().setTextAlign("right").run()}
+          active={editor.isActive({ textAlign: "right" })}
+          title="Align right"
+        >
+          <AlignRight className="h-4 w-4" />
         </ToolbarButton>
         <span className="mx-1 h-5 w-px bg-white/10" />
         <ToolbarButton

@@ -441,12 +441,18 @@ export type SupabasePost = {
   updated_at: string | null;
   published_at?: string | null;
   source_name?: string | null;
+  /** Content type slug (e.g. showcase_people, showcase_products) for showcase rendering. */
+  content_type_slug?: string | null;
+  /** Showcase items for Best of / Awards. */
+  showcase_data?: unknown[];
+  /** Display options (e.g. hide_header). */
+  display_options?: Record<string, unknown>;
 };
 
 export async function getPostBySlug(slug: string): Promise<SupabasePost | null> {
   const { data, error } = await supabase
     .from("posts")
-    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at, published_at, source_name")
+    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at, published_at, source_name, showcase_data, display_options")
     .eq("slug", slug)
     .eq("status", "published")
     .maybeSingle();
@@ -456,10 +462,31 @@ export async function getPostBySlug(slug: string): Promise<SupabasePost | null> 
     return null;
   }
   if (!data) return null;
+
+  let content_type_slug: string | null = null;
+  const { data: pct } = await supabase
+    .from("post_content_types")
+    .select("content_type_id")
+    .eq("post_id", data.id)
+    .maybeSingle();
+  if (pct?.content_type_id != null) {
+    const { data: ct } = await supabase
+      .from("content_types")
+      .select("slug")
+      .eq("id", pct.content_type_id)
+      .maybeSingle();
+    content_type_slug = ct?.slug ?? null;
+  }
+
+  const showcaseData = data.showcase_data;
+  const displayOptions = data.display_options;
   return {
     ...data,
     body: data.content != null ? String(data.content) : null,
     featured_image: data.main_image != null ? String(data.main_image) : null,
+    content_type_slug,
+    showcase_data: Array.isArray(showcaseData) ? showcaseData : [],
+    display_options: displayOptions != null && typeof displayOptions === "object" && !Array.isArray(displayOptions) ? (displayOptions as Record<string, unknown>) : {},
   } as SupabasePost;
 }
 

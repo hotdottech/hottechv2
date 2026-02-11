@@ -7,6 +7,7 @@ import { ArrowLeft } from "lucide-react";
 import { getPostBySlug, getPostPrimaryCategoryName } from "@/lib/data";
 import { constructMetadata } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { ShowcaseGrid } from "@/components/posts/ShowcaseGrid";
 import { SocialEmbedEnhancer } from "@/components/posts/SocialEmbedEnhancer";
 import { getBaseUrl } from "@/lib/url";
 
@@ -61,31 +62,38 @@ export default async function ArticlePage({ params }: PageProps) {
     url: articleUrl,
   };
 
+  const displayOptions = (post as { display_options?: Record<string, unknown> }).display_options ?? {};
+  const hideHeader = displayOptions.hide_header === true;
+
   return (
     <>
       <JsonLd data={newsArticleSchema} />
       <article className="mx-auto max-w-4xl px-4 pb-16 pt-8 sm:px-6 lg:px-8">
-      <Link
-        href="/"
-        className="mb-8 inline-flex items-center gap-1.5 font-sans text-sm text-gray-400 transition-colors hover:text-hot-white"
-      >
-        <ArrowLeft className="h-4 w-4" />
-        Back to Home
-      </Link>
+      {!hideHeader && (
+        <>
+          <Link
+            href="/"
+            className="mb-8 inline-flex items-center gap-1.5 font-sans text-sm text-gray-400 transition-colors hover:text-hot-white"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Back to Home
+          </Link>
 
-      <header className="mb-6">
-        <h1 className="font-serif text-5xl font-bold text-hot-white mb-6 md:text-6xl">
-          {post.title ?? "Untitled"}
-        </h1>
-        <div className="flex flex-wrap items-center gap-3 text-gray-400">
-          <span className="font-sans text-sm text-hot-white/90">Hot Tech</span>
-          {date && (
-            <span className="font-sans text-sm">
-              {format(new Date(date), "MMM d, yyyy")}
-            </span>
-          )}
-        </div>
-      </header>
+          <header className="mb-6">
+            <h1 className="font-serif text-5xl font-bold text-hot-white mb-6 md:text-6xl">
+              {post.title ?? "Untitled"}
+            </h1>
+            <div className="flex flex-wrap items-center gap-3 text-gray-400">
+              <span className="font-sans text-sm text-hot-white/90">Hot Tech</span>
+              {date && (
+                <span className="font-sans text-sm">
+                  {format(new Date(date), "MMM d, yyyy")}
+                </span>
+              )}
+            </div>
+          </header>
+        </>
+      )}
 
       {post.featured_image && (
         <div className="relative my-12 aspect-video w-full overflow-hidden rounded-xl bg-hot-gray">
@@ -106,6 +114,15 @@ export default async function ArticlePage({ params }: PageProps) {
           __html: (post as { content?: string; body?: string }).content || post.body || "",
         }}
       />
+      {post.content_type_slug?.startsWith("showcase_") &&
+        Array.isArray(post.showcase_data) &&
+        post.showcase_data.length > 0 && (
+          <ShowcaseGrid
+            type={post.content_type_slug === "showcase_people" ? "people" : "products"}
+            items={post.showcase_data}
+            displayOptions={(post as { display_options?: Record<string, unknown> }).display_options}
+          />
+        )}
       <SocialEmbedEnhancer />
     </article>
     </>

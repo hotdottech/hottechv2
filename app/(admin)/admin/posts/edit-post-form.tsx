@@ -9,6 +9,7 @@ import type { CategoryRow } from "@/lib/actions/categories";
 import type { TagRow } from "@/lib/actions/tags";
 import type { ContentTypeRow } from "@/lib/actions/content-types";
 import { SidebarSection } from "@/app/components/admin/posts/SidebarSection";
+import { ShowcaseManager, type ShowcaseItem } from "@/app/components/admin/posts/ShowcaseManager";
 import { TagInput, type SelectedTag } from "@/app/components/admin/posts/TagInput";
 import { UniversalImagePicker } from "@/app/components/admin/shared/UniversalImagePicker";
 
@@ -89,10 +90,33 @@ export function EditPostForm({
   const [selectedContentTypeId, setSelectedContentTypeId] = useState<number | null>(
     initialContentTypeId
   );
+  const [displayOptions, setDisplayOptions] = useState<Record<string, unknown>>(() => {
+    const opts = post?.display_options;
+    if (opts != null && typeof opts === "object" && !Array.isArray(opts)) {
+      return { ...(opts as Record<string, unknown>) };
+    }
+    return {};
+  });
+  const [showcaseData, setShowcaseData] = useState<ShowcaseItem[]>(() => {
+    const raw = post?.showcase_data;
+    if (!Array.isArray(raw)) return [];
+    return raw.filter(
+      (x): x is ShowcaseItem =>
+        x != null &&
+        typeof x === "object" &&
+        typeof (x as ShowcaseItem).id === "string" &&
+        typeof (x as ShowcaseItem).title === "string"
+    ) as ShowcaseItem[];
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
   const categoryRows = useMemo(() => buildCategoryRows(categories), [categories]);
+  const selectedContentTypeSlug =
+    contentTypes.find((ct) => ct.id === selectedContentTypeId)?.slug ?? null;
+  const isShowcase = selectedContentTypeSlug?.startsWith("showcase_") ?? false;
+  const showcaseType: "people" | "products" =
+    selectedContentTypeSlug === "showcase_people" ? "people" : "products";
   const availableTagOptions = useMemo(
     () => tags.map((t) => ({ id: t.id, name: t.name ?? "", slug: t.slug ?? "" })),
     [tags]
@@ -188,6 +212,8 @@ export function EditPostForm({
     selectedCategoryIds.forEach((id) => formData.append("category_ids", String(id)));
     finalTagIds.forEach((id) => formData.append("tag_ids", String(id)));
     if (selectedContentTypeId != null) formData.set("content_type_id", String(selectedContentTypeId));
+    formData.set("showcase_data", JSON.stringify(showcaseData));
+    formData.set("display_options", JSON.stringify(displayOptions));
 
     if (post?.id) {
       const result = await updatePost(post.id, formData);
@@ -247,6 +273,15 @@ export function EditPostForm({
             className="mt-2"
           />
         </div>
+        {isShowcase && (
+          <ShowcaseManager
+            items={showcaseData}
+            onChange={setShowcaseData}
+            type={showcaseType}
+            displayOptions={displayOptions}
+            onDisplayOptionsChange={setDisplayOptions}
+          />
+        )}
       </div>
 
       <aside className="sticky top-20 h-[calc(100vh-100px)] w-full shrink-0 overflow-y-auto space-y-4 lg:w-[33.333%]">
@@ -288,6 +323,21 @@ export function EditPostForm({
               />
             </div>
           </div>
+        </SidebarSection>
+
+        <SidebarSection title="Display Settings" defaultOpen={false}>
+          <label className="flex cursor-pointer items-center gap-2 font-sans text-sm">
+            <input
+              type="checkbox"
+              checked={displayOptions.hide_header === true}
+              onChange={(e) => setDisplayOptions((prev) => ({ ...prev, hide_header: e.target.checked }))}
+              className="rounded border-white/20 bg-hot-black text-hot-white focus:ring-0"
+            />
+            <span className="text-hot-white">Hide Header</span>
+          </label>
+          <p className="mt-1.5 font-sans text-xs text-gray-500">
+            Hides title, date, and breadcrumbs for a landing page look.
+          </p>
         </SidebarSection>
 
         <SidebarSection title="Content Type" defaultOpen={true}>

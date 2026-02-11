@@ -39,6 +39,18 @@ body {
   pointer-events: none;
 }
 
+/* Prose: paragraph spacing and empty paragraphs */
+.prose p {
+  margin-bottom: 1.25em;
+}
+.prose p:last-child {
+  margin-bottom: 0;
+}
+.prose p:empty {
+  height: 1.25em;
+  min-height: 1.25em;
+}
+
 /* Social / oEmbed iframes: responsive */
 .tiktok-embed iframe,
 .instagram-media iframe,
