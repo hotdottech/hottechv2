@@ -4,6 +4,7 @@ import { createClient } from "@/utils/supabase/server";
 import { getBaseUrl } from "@/lib/url";
 import { Resend } from "resend";
 import { WeeklyNewsletter } from "@/emails/WeeklyNewsletter";
+import { sendBroadcast } from "@/lib/actions/sending";
 
 export type NewsletterRow = {
   id: string;
@@ -282,36 +283,23 @@ export async function broadcastNewsletter(slug: string): Promise<{ error?: strin
   const filtered = subscriberList.filter((s) => s.email);
   if (filtered.length === 0) return { error: "No active subscribers." };
 
-  if (!process.env.RESEND_API_KEY) return { error: "RESEND_API_KEY is not set." };
-
-  const subject = newsletter.subject ?? "Newsletter";
-  const slugVal = newsletter.slug ?? newsletter.id;
-  const baseUrl = getBaseUrl();
-
-  for (const subscriber of filtered) {
-    const unsubscribeUrl = `${baseUrl}/unsubscribe?id=${subscriber.id}`;
-    console.log("[broadcastNewsletter] unsubscribe URL:", unsubscribeUrl);
-    const { error } = await resend.emails.send({
-      from: FROM_EMAIL,
-      to: [subscriber.email],
-      subject,
-      headers: {
-        "List-Unsubscribe": unsubscribeUrl,
+  let result: { success: true; sent_count: number; error_count: number };
+  try {
+    result = await sendBroadcast({
+      newsletter: {
+        subject: newsletter.subject ?? "Newsletter",
+        preview_text: newsletter.preview_text,
+        content: newsletter.content,
+        slug: newsletter.slug ?? newsletter.id,
       },
-      react: WeeklyNewsletter({
-        subject,
-        previewText: newsletter.preview_text ?? subject,
-        content: newsletter.content ?? "",
-        slug: slugVal,
-        email: subscriber.email,
-        unsubscribeUrl,
-        baseUrl,
-      }),
+      subscribers: filtered,
+      baseUrl: getBaseUrl(),
+      fromEmail: FROM_EMAIL,
     });
-    if (error) {
-      console.error("[broadcastNewsletter]", error);
-      return { error: `Failed to send to ${subscriber.email}: ${error.message}`, count: 0 };
-    }
+  } catch (err) {
+    const message = err instanceof Error ? err.message : "Send failed.";
+    console.error("[broadcastNewsletter]", err);
+    return { error: message };
   }
 
   const sentAt = new Date().toISOString();
@@ -322,8 +310,8 @@ export async function broadcastNewsletter(slug: string): Promise<{ error?: strin
 
   if (updateError) {
     console.error("[broadcastNewsletter] update status", updateError);
-    return { error: "Emails sent but status update failed.", count: filtered.length };
+    return { error: "Emails sent but status update failed.", count: result.sent_count };
   }
 
-  return { count: filtered.length };
+  return { count: result.sent_count };
 }

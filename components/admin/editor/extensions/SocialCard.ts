@@ -1,6 +1,6 @@
 import { Node } from "@tiptap/core";
 
-export type SocialPlatform = "tiktok" | "instagram" | "x" | "unknown";
+export type SocialPlatform = "tiktok" | "instagram" | "x" | "link" | "unknown";
 
 export interface SocialCardOptions {
   platform: SocialPlatform;
@@ -15,6 +15,8 @@ function getPlatformLabel(platform: SocialPlatform): string {
       return "View post on Instagram";
     case "x":
       return "View post on X";
+    case "link":
+    case "unknown":
     default:
       return "View link";
   }
@@ -28,6 +30,8 @@ function getPlatformEmoji(platform: SocialPlatform): string {
       return "📷";
     case "x":
       return "𝕏";
+    case "link":
+    case "unknown":
     default:
       return "🔗";
   }
@@ -49,46 +53,43 @@ const arrowStyle = "margin-left:8px; color:#9ca3af;";
 export const SocialCard = Node.create({
   name: "socialCard",
 
+  priority: 1000,
+
   group: "block",
   atom: true,
 
   addAttributes() {
     return {
-      platform: { default: "unknown" },
-      url: { default: "" },
+      platform: {
+        default: "link",
+        parseHTML: (element) => element.getAttribute("data-platform") ?? "link",
+      },
+      url: {
+        default: "",
+        parseHTML: (element) =>
+          element.getAttribute("data-url") ?? element.getAttribute("href") ?? "",
+      },
     };
   },
 
   parseHTML() {
-    return [
-      {
-        tag: 'a[data-social-embed="true"]',
-        getAttrs: (dom) => {
-          const el = dom as HTMLElement;
-          const url = el.getAttribute("data-url") ?? el.getAttribute("href") ?? "";
-          let platform: SocialPlatform = "unknown";
-          const u = url.toLowerCase();
-          if (u.includes("tiktok.com")) platform = "tiktok";
-          else if (u.includes("instagram.com")) platform = "instagram";
-          else if (u.includes("twitter.com") || u.includes("x.com")) platform = "x";
-          return { platform, url };
-        },
-      },
-    ];
+    return [{ tag: 'a[data-type="social-card"]' }];
   },
 
-  renderHTML({ node }) {
-    const { platform, url } = node.attrs;
-    const p = (platform as SocialPlatform) || "unknown";
-    const label = getPlatformLabel(p);
-    const emoji = getPlatformEmoji(p);
+  renderHTML({ node, HTMLAttributes }) {
+    const platform = (HTMLAttributes.platform ?? node.attrs.platform ?? "link") as SocialPlatform;
+    const url = HTMLAttributes.url ?? node.attrs.url ?? "";
     const safeUrl = url && String(url).trim() ? String(url) : "#";
+    const label = getPlatformLabel(platform);
+    const emoji = getPlatformEmoji(platform);
 
     return [
       "a",
       {
+        ...HTMLAttributes,
         href: safeUrl,
-        "data-social-embed": "true",
+        "data-type": "social-card",
+        "data-platform": platform,
         "data-url": safeUrl,
         style: containerStyle,
       },

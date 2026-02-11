@@ -32,60 +32,47 @@ const readMoreStyle =
 export const PostCard = Node.create({
   name: "postCard",
 
+  priority: 1000,
+
   group: "block",
   atom: true,
 
   addAttributes() {
     return {
-      title: { default: "" },
-      excerpt: { default: "" },
-      image: { default: "" },
-      url: { default: "" },
-      date: { default: null },
+      title: {
+        default: "",
+        parseHTML: (element) => element.getAttribute("data-title") ?? "",
+      },
+      excerpt: {
+        default: "",
+        parseHTML: (element) => element.getAttribute("data-excerpt") ?? "",
+      },
+      image: {
+        default: "",
+        parseHTML: (element) => element.getAttribute("data-image") ?? "",
+      },
+      url: {
+        default: "",
+        parseHTML: (element) =>
+          element.getAttribute("href") ?? element.getAttribute("data-url") ?? "",
+      },
+      date: {
+        default: "",
+        parseHTML: (element) => element.getAttribute("data-date") ?? "",
+      },
     };
   },
 
   parseHTML() {
-    return [
-      {
-        tag: 'a[data-type="postCard"]',
-        getAttrs: (dom) => {
-          const el = dom as HTMLElement;
-          return {
-            title: el.getAttribute("data-title") ?? "",
-            excerpt: el.getAttribute("data-excerpt") ?? "",
-            image: el.getAttribute("data-image") ?? "",
-            url: el.getAttribute("href") ?? el.getAttribute("data-url") ?? "",
-            date: el.getAttribute("data-date"),
-          };
-        },
-      },
-      {
-        tag: "a.content-card",
-        getAttrs: (dom) => {
-          const el = dom as HTMLElement;
-          const href = el.getAttribute("href") ?? "";
-          const imgEl = el.querySelector("[data-card-image]") as HTMLElement | null;
-          const titleEl = el.querySelector("h3");
-          const excerptEl = el.querySelector("p");
-          const image =
-            imgEl?.style?.backgroundImage?.match(/url\(["']?([^"')]+)["']?\)/)?.[1] ??
-            imgEl?.getAttribute("data-src") ??
-            "";
-          return {
-            title: titleEl?.textContent?.trim() ?? "",
-            excerpt: excerptEl?.textContent?.trim() ?? "",
-            image: image,
-            url: href,
-            date: null,
-          };
-        },
-      },
-    ];
+    return [{ tag: 'a[data-type="post-card"]' }];
   },
 
-  renderHTML({ node }) {
-    const { title, excerpt, image, url } = node.attrs;
+  renderHTML({ node, HTMLAttributes }) {
+    const title = HTMLAttributes.title ?? node.attrs.title ?? "";
+    const excerpt = HTMLAttributes.excerpt ?? node.attrs.excerpt ?? "";
+    const image = HTMLAttributes.image ?? node.attrs.image ?? "";
+    const url = HTMLAttributes.url ?? node.attrs.url ?? "";
+    const date = HTMLAttributes.date ?? node.attrs.date ?? "";
     const imgSrc =
       image && String(image).trim()
         ? String(image).replace(/'/g, "%27")
@@ -95,14 +82,15 @@ export const PostCard = Node.create({
     return [
       "a",
       {
+        ...HTMLAttributes,
         href: safeUrl,
         class: "content-card",
-        "data-type": "postCard",
+        "data-type": "post-card",
         "data-title": title,
         "data-excerpt": excerpt,
         "data-image": image,
         "data-url": safeUrl,
-        "data-date": node.attrs.date || "",
+        "data-date": date,
         style: containerStyle,
       },
       [

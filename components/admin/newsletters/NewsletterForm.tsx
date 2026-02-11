@@ -154,31 +154,32 @@ export function NewsletterForm({ initialData }: NewsletterFormProps) {
     [currentPayload, testEmail]
   );
 
-  const handleBroadcastClick = useCallback(async () => {
-    const savedId = await saveDraft(true);
-    if (savedId == null) return;
-    const count = await calculateRecipientCount(audience);
-    setRecipientCount(count);
+  const handleBroadcastClick = useCallback(() => {
     setBroadcastError("");
     setBroadcastStatus("idle");
     setBroadcastModalOpen(true);
-  }, [saveDraft, audience]);
+    calculateRecipientCount(audience).then(setRecipientCount);
+  }, [audience]);
 
-  const handleBroadcastConfirm = useCallback(async () => {
-    const docId = id;
-    if (!docId) return;
+  const handleBroadcast = useCallback(async () => {
     setBroadcastStatus("sending");
     setBroadcastError("");
-    const result = await broadcastNewsletter(docId);
+    const savedId = await saveDraft(true);
+    if (savedId == null) {
+      setBroadcastStatus("error");
+      setBroadcastError("Could not save draft.");
+      return;
+    }
+    const result = await broadcastNewsletter(savedId);
     if (result.error) {
       setBroadcastError(result.error);
       setBroadcastStatus("error");
     } else {
       setBroadcastStatus("ok");
       setBroadcastModalOpen(false);
-      router.replace(`/admin/newsletters/${docId}`);
+      router.push("/admin/newsletters");
     }
-  }, [id, router]);
+  }, [saveDraft, router]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -209,7 +210,6 @@ export function NewsletterForm({ initialData }: NewsletterFormProps) {
           <button
             type="button"
             onClick={handleBroadcastClick}
-            disabled={saving}
             className="rounded-md bg-red-600 px-4 py-2 font-sans text-sm font-medium text-white transition-colors hover:bg-red-500 disabled:opacity-50"
           >
             Broadcast
@@ -357,7 +357,7 @@ export function NewsletterForm({ initialData }: NewsletterFormProps) {
             <p className="mt-2 font-sans text-sm text-gray-400">
               This will send the campaign to{" "}
               <span className="font-semibold text-hot-white">
-                {recipientCount ?? 0}
+                {recipientCount != null ? recipientCount : "…"}
               </span>{" "}
               recipient{recipientCount === 1 ? "" : "s"}. Are you sure?
             </p>
@@ -372,7 +372,7 @@ export function NewsletterForm({ initialData }: NewsletterFormProps) {
               </button>
               <button
                 type="button"
-                onClick={handleBroadcastConfirm}
+                onClick={handleBroadcast}
                 disabled={broadcastStatus === "sending"}
                 className="flex-1 rounded-md bg-red-600 px-3 py-2 font-sans text-sm font-medium text-white hover:bg-red-500 disabled:opacity-50"
               >

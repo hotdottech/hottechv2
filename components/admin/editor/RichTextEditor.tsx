@@ -93,10 +93,10 @@ export function RichTextEditor({
         link: false,
       }),
       Image.configure({ inline: false, allowBase64: false }),
-      Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-hot-blue underline" } }),
-      Placeholder.configure({ placeholder }),
       PostCard,
       SocialCard,
+      Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-hot-blue underline" } }),
+      Placeholder.configure({ placeholder }),
     ],
     content: content || "<p></p>",
     editorProps: {
