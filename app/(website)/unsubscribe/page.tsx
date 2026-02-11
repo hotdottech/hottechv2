@@ -1,11 +1,11 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useCallback, useState } from "react";
+import { Suspense, useCallback, useState } from "react";
 import Link from "next/link";
 import { unsubscribeUser } from "./actions";
 
-export default function UnsubscribePage() {
+function UnsubscribeContent() {
   const searchParams = useSearchParams();
   const id = searchParams.get("id") ?? "";
   const [status, setStatus] = useState<"idle" | "loading" | "success" | "error">("idle");
@@ -79,6 +79,16 @@ export default function UnsubscribePage() {
           </Link>
         </>
       )}
+    </div>
+  );
+}
+
+export default function UnsubscribePage() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-black text-white">
+      <Suspense fallback={<div className="text-zinc-400">Loading...</div>}>
+        <UnsubscribeContent />
+      </Suspense>
     </div>
   );
 }
