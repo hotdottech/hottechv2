@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { useNewsletter } from "@/components/newsletter/SubscribeModal";
 import type { SiteSettings } from "@/lib/types";
 
 type NavItem = { label: string; url: string };
@@ -37,6 +38,7 @@ type NavbarProps = {
 
 export function Navbar({ settings }: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const { openModal } = useNewsletter();
   const siteName = settings?.site_name ?? "Hot Tech";
   const showLogo = Boolean(settings?.show_logo && settings?.logo_url);
   const logoUrl = settings?.logo_url ?? null;
@@ -103,7 +105,7 @@ export function Navbar({ settings }: NavbarProps) {
               className={ctaButtonClass}
               onClick={() => {
                 if (ctaType === "subscribe") {
-                  document.getElementById("subscribe")?.scrollIntoView({ behavior: "smooth" });
+                  openModal();
                 } else if (ctaType === "contact") {
                   document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
                 }

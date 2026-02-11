@@ -1,7 +1,7 @@
 "use client";
 
 import { motion } from "framer-motion";
-import { NewsletterInput } from "./newsletter-input";
+import { NewsletterForm } from "@/components/newsletter/NewsletterForm";
 import type { HeroBlockData } from "@/lib/types";
 
 const defaultTitle = "Nirave Gondhia.";
@@ -50,7 +50,9 @@ export function Hero({ data }: HeroProps) {
           >
             {description}
           </motion.p>
-          <NewsletterInput />
+          <div className="mt-8 p-8">
+            <NewsletterForm source="homepage_cta" />
+          </div>
         </div>
 
         <motion.div

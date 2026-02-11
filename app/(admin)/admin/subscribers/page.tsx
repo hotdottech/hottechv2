@@ -1,12 +1,15 @@
-export default function AdminSubscribersPage() {
+import { getSubscribers, getSubscriberCount } from "@/lib/actions/subscribers";
+import { SubscribersManager } from "./subscribers-manager";
+
+export default async function AdminSubscribersPage() {
+  const [subscribers, activeCount] = await Promise.all([
+    getSubscribers(),
+    getSubscriberCount(),
+  ]);
+
   return (
-    <div>
-      <h1 className="font-serif text-2xl font-bold text-hot-white">
-        Subscribers
-      </h1>
-      <p className="mt-2 font-sans text-gray-400">
-        Subscriber list (DB table) will be shown here.
-      </p>
+    <div className="space-y-6 p-6 lg:p-10">
+      <SubscribersManager subscribers={subscribers} activeCount={activeCount} />
     </div>
   );
 }

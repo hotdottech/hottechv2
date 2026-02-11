@@ -58,6 +58,16 @@ export interface FeedItem {
   publisher?: string; // e.g. "Forbes", "YouTube"
 }
 
+/** Newsletter subscriber (subscribers table). */
+export interface Subscriber {
+  id: string;
+  email: string;
+  status: "active" | "unsubscribed" | "bounced";
+  created_at: string;
+  source?: string;
+  preferences?: { segments?: string[] } | null;
+}
+
 export interface SiteSettingsCta {
   type: string;
   label: string;

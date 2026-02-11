@@ -101,6 +101,13 @@ export async function createNewsletter(formData: FormData): Promise<{ id?: strin
   const preview_text = (formData.get("preview_text") as string)?.trim() ?? "";
   const content = (formData.get("content") as string) ?? "";
   const status = (formData.get("status") as string) || "draft";
+  let target_config: Record<string, unknown> = {};
+  try {
+    const raw = formData.get("target_config");
+    if (typeof raw === "string" && raw) target_config = JSON.parse(raw) as Record<string, unknown>;
+  } catch {
+    // keep default
+  }
 
   if (!subject) return { error: "Subject is required." };
 
@@ -112,6 +119,7 @@ export async function createNewsletter(formData: FormData): Promise<{ id?: strin
       preview_text: preview_text || null,
       content: content || null,
       status,
+      target_config,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     })

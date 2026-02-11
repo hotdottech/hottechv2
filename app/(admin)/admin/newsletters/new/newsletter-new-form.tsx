@@ -3,7 +3,9 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { TiptapEditor } from "@/components/editor/tiptap-editor";
+import { AudienceSelector } from "@/components/admin/newsletters/AudienceSelector";
 import { createNewsletter } from "../actions";
+import type { TargetConfig } from "@/lib/actions/newsletter-audience";
 
 function slugify(text: string) {
   return text
@@ -20,6 +22,11 @@ export function NewsletterNewForm() {
   const [slug, setSlug] = useState("");
   const [previewText, setPreviewText] = useState("");
   const [content, setContent] = useState("");
+  const [targetConfig, setTargetConfig] = useState<TargetConfig>({
+    type: "all",
+    filters: { sources: [], tags: [] },
+    manual_ids: [],
+  });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -32,6 +39,7 @@ export function NewsletterNewForm() {
     formData.set("preview_text", previewText);
     formData.set("content", content);
     formData.set("status", "draft");
+    formData.set("target_config", JSON.stringify(targetConfig));
     const result = await createNewsletter(formData);
     setSaving(false);
     if (result.error) {
@@ -55,6 +63,9 @@ export function NewsletterNewForm() {
             placeholder="Newsletter subject line"
             className="mt-2 w-full rounded-md border border-white/10 bg-hot-gray px-4 py-3 font-serif text-xl text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none focus:ring-1 focus:ring-hot-white/20"
           />
+        </div>
+        <div>
+          <AudienceSelector value={targetConfig} onChange={setTargetConfig} />
         </div>
         <div>
           <label className="block font-sans text-sm font-medium text-gray-400">

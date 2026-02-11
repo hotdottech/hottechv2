@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Fraunces, Geist } from "next/font/google";
 import { constructMetadata } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
+import { NewsletterProvider } from "@/components/newsletter/SubscribeModal";
 import { getSiteSettings } from "@/lib/data";
 import { getBaseUrl } from "@/lib/url";
 import "./globals.css";
@@ -53,7 +54,7 @@ export default async function RootLayout({
         suppressHydrationWarning
       >
         <JsonLd data={webSiteSchema} />
-        {children}
+        <NewsletterProvider>{children}</NewsletterProvider>
       </body>
     </html>
   );

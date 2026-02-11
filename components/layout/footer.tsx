@@ -1,4 +1,7 @@
+"use client";
+
 import Link from "next/link";
+import { NewsletterForm } from "@/components/newsletter/NewsletterForm";
 
 const CURRENT_YEAR = new Date().getFullYear();
 
@@ -18,18 +21,26 @@ export function Footer() {
             <span className="font-medium">Nirave Gondhia / Hot Tech</span>
           </div>
 
-          {/* Right column: Legacy links */}
-          <nav className="flex flex-col gap-2 sm:flex-row sm:gap-6">
-            {legacyLinks.map(({ href, label }) => (
-              <Link
-                key={href}
-                href={href}
-                className="text-sm text-hot-white/80 transition-colors hover:text-hot-white"
-              >
-                {label}
-              </Link>
-            ))}
-          </nav>
+          {/* Right column: Newsletter + legacy links */}
+          <div className="flex flex-col gap-4">
+            <div>
+              <p className="mb-2 font-sans text-sm font-medium text-hot-white">
+                Stay updated
+              </p>
+              <NewsletterForm source="footer" variant="stack" />
+            </div>
+            <nav className="flex flex-col gap-2 sm:flex-row sm:gap-6">
+              {legacyLinks.map(({ href, label }) => (
+                <Link
+                  key={href}
+                  href={href}
+                  className="text-sm text-hot-white/80 transition-colors hover:text-hot-white"
+                >
+                  {label}
+                </Link>
+              ))}
+            </nav>
+          </div>
         </div>
 
         <p className="mt-8 border-t border-hot-gray pt-8 text-center text-sm text-hot-white/60">
