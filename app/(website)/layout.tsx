@@ -1,16 +1,19 @@
+import { getSiteSettings } from "@/lib/data";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { ReactiveBackground } from "@/components/layout/reactive-background";
 
-export default function WebsiteLayout({
+export default async function WebsiteLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const settings = await getSiteSettings();
+
   return (
     <>
       <ReactiveBackground />
-      <Navbar />
+      <Navbar settings={settings} />
       <main className="min-h-screen pt-20">{children}</main>
       <Footer />
     </>

@@ -13,6 +13,7 @@ const contentLinks = [
 const otherLinks = [
   { href: "/admin/newsletters", label: "Newsletters" },
   { href: "/admin/media", label: "Media" },
+  { href: "/admin/settings", label: "Settings" },
   { href: "/admin/subscribers", label: "Subscribers" },
 ] as const;
 

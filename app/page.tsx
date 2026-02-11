@@ -1,4 +1,4 @@
-import { getUnifiedFeed } from "@/lib/data";
+import { getUnifiedFeed, getSiteSettings } from "@/lib/data";
 import { Hero } from "@/components/home/hero";
 import { FeedGrid } from "@/components/home/feed-grid";
 import { SocialPresence } from "@/components/home/social-presence";
@@ -10,12 +10,15 @@ export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 export default async function Home() {
-  const feed = await getUnifiedFeed();
+  const [feed, settings] = await Promise.all([
+    getUnifiedFeed(),
+    getSiteSettings(),
+  ]);
 
   return (
     <>
       <ReactiveBackground />
-      <Navbar />
+      <Navbar settings={settings} />
       <main className="min-h-screen pt-20">
         <Hero />
         <FeedGrid items={feed} />

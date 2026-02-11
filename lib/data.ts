@@ -1,7 +1,7 @@
 import Parser from "rss-parser";
 import { parseISO } from "date-fns";
 import { supabase } from "./supabase";
-import type { FeedItem } from "./types";
+import type { FeedItem, SiteSettings } from "./types";
 
 const PLACEHOLDER_IMAGE = "https://placehold.co/600x400/1a1a1a/FFF";
 const AUTHORY_FEED_URL = "https://authory.com/hot/rss";
@@ -212,4 +212,18 @@ export async function getNewsletterBySlug(slug: string): Promise<NewsletterPubli
     return null;
   }
   return data as NewsletterPublic | null;
+}
+
+/** Fetch the singleton site settings (id=1). */
+export async function getSiteSettings(): Promise<SiteSettings | null> {
+  const { data, error } = await supabase
+    .from("site_settings")
+    .select("*")
+    .eq("id", 1)
+    .maybeSingle();
+  if (error) {
+    console.error("Error fetching settings:", error);
+    return null;
+  }
+  return data as SiteSettings | null;
 }
