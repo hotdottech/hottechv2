@@ -12,6 +12,9 @@ const contentLinks = [
 ] as const;
 
 const otherLinks = [
+  { href: "/admin/categories", label: "Categories" },
+  { href: "/admin/tags", label: "Tags" },
+  { href: "/admin/content-types", label: "Content Types" },
   { href: "/admin/newsletters", label: "Newsletters" },
   { href: "/admin/media", label: "Media" },
   { href: "/admin/settings", label: "Settings" },
