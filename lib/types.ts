@@ -1,3 +1,28 @@
+/** Homepage block: hero, feature_grid, timeline, or smart_feed. */
+export type HomepageBlockType = "hero" | "feature_grid" | "timeline" | "smart_feed";
+
+export interface HomepageBlock {
+  id: string;
+  type: HomepageBlockType;
+  enabled: boolean;
+  data?: unknown;
+}
+
+/** Hero block data (stored in block.data). */
+export interface HeroBlockData {
+  title?: string;
+  subtitle?: string;
+  description?: string;
+  headshot_url?: string;
+  shape?: "circle" | "square";
+}
+
+/** Feature grid block data (stored in block.data). */
+export interface FeatureGridBlockData {
+  sectionTitle?: string;
+  postIds?: string[];
+}
+
 export interface FeedItem {
   id: string;
   title: string;
@@ -26,5 +51,6 @@ export interface SiteSettings {
   navigation_menu: unknown;
   cta_settings: SiteSettingsCta;
   social_links: unknown;
+  homepage_layout?: HomepageBlock[];
   updated_at: string;
 }

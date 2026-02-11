@@ -2,8 +2,26 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
+import type { HomepageBlock } from "@/lib/types";
 
 export type NavMenuItem = { label: string; url: string; type?: string };
+
+export async function getHomepageLayout(): Promise<HomepageBlock[]> {
+  const client = await createClient();
+  const { data, error } = await client
+    .from("site_settings")
+    .select("homepage_layout")
+    .eq("id", 1)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[getHomepageLayout]", error);
+    return [];
+  }
+  const raw = data?.homepage_layout;
+  if (!Array.isArray(raw)) return [];
+  return raw as HomepageBlock[];
+}
 
 export async function getNavigationMenu(): Promise<NavMenuItem[]> {
   const client = await createClient();
@@ -54,5 +72,37 @@ export async function updateNavigation(
 
   revalidatePath("/");
   revalidatePath("/admin/menus");
+  return {};
+}
+
+export async function updateHomepageLayout(
+  layout: HomepageBlock[]
+): Promise<{ error?: string }> {
+  const client = await createClient();
+  const {
+    data: { user },
+  } = await client.auth.getUser();
+  if (!user) {
+    return { error: "Unauthorized." };
+  }
+
+  if (!Array.isArray(layout)) {
+    return { error: "Layout must be an array." };
+  }
+
+  const { error } = await client
+    .from("site_settings")
+    .update({
+      homepage_layout: layout,
+      updated_at: new Date().toISOString(),
+    })
+    .eq("id", 1);
+
+  if (error) {
+    console.error("[updateHomepageLayout]", error);
+    return { error: error.message };
+  }
+
+  revalidatePath("/");
   return {};
 }

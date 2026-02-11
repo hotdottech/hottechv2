@@ -7,6 +7,7 @@ import type { FeedItem } from "@/lib/types";
 
 type FeedGridProps = {
   items: FeedItem[];
+  sectionTitle?: string;
 };
 
 const container = {
@@ -24,10 +25,16 @@ const itemVariants = {
   visible: { opacity: 1 },
 };
 
-export function FeedGrid({ items }: FeedGridProps) {
+export function FeedGrid({ items, sectionTitle }: FeedGridProps) {
   return (
-    <motion.div
-      className="mx-auto grid max-w-7xl grid-cols-1 gap-6 px-4 pb-16 sm:px-6 md:grid-cols-2 lg:grid-cols-3 lg:px-8"
+    <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+      {sectionTitle?.trim() && (
+        <h2 className="mb-6 font-serif text-2xl font-bold text-hot-white">
+          {sectionTitle.trim()}
+        </h2>
+      )}
+      <motion.div
+        className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
       variants={container}
       initial="hidden"
       animate="visible"
@@ -50,5 +57,6 @@ export function FeedGrid({ items }: FeedGridProps) {
         ))}
       </AnimatePresence>
     </motion.div>
+    </section>
   );
 }

@@ -2,12 +2,29 @@
 
 import { motion } from "framer-motion";
 import { NewsletterInput } from "./newsletter-input";
+import type { HeroBlockData } from "@/lib/types";
 
-export function Hero() {
+const defaultTitle = "Nirave Gondhia.";
+const defaultSubtitle = "Journalist, Host & Creator.";
+const defaultDescription = "Seen in: Forbes, TechRadar, Android Central";
+
+type HeroProps = {
+  data?: HeroBlockData | null;
+};
+
+export function Hero({ data }: HeroProps) {
+  const title = data?.title?.trim() || defaultTitle;
+  const subtitle = data?.subtitle?.trim() || defaultSubtitle;
+  const description = data?.description?.trim() || defaultDescription;
+  const headshotUrl = data?.headshot_url?.trim() || null;
+  const isSquare = data?.shape === "square";
+  const wrapperClass = isSquare
+    ? "aspect-square w-64 shrink-0 overflow-hidden rounded-lg bg-hot-gray"
+    : "aspect-square w-64 shrink-0 overflow-hidden rounded-full bg-hot-gray";
+
   return (
     <section className="mx-auto max-w-7xl px-4 py-16 sm:px-6 lg:px-8">
       <div className="flex flex-col items-center gap-12 lg:flex-row lg:items-start lg:justify-between">
-        {/* Left: Headline + subtext + social proof */}
         <div className="flex flex-col">
           <motion.h1
             className="font-serif text-5xl font-medium text-hot-white"
@@ -15,7 +32,7 @@ export function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut" }}
           >
-            Nirave Gondhia.
+            {title}
           </motion.h1>
           <motion.p
             className="mt-3 font-sans text-xl text-gray-400"
@@ -23,7 +40,7 @@ export function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut", delay: 0.1 }}
           >
-            Journalist, Host & Creator.
+            {subtitle}
           </motion.p>
           <motion.p
             className="mt-6 font-sans text-sm text-hot-white/60"
@@ -31,19 +48,26 @@ export function Hero() {
             animate={{ opacity: 1, y: 0 }}
             transition={{ duration: 0.5, ease: "easeOut", delay: 0.2 }}
           >
-            Seen in: Forbes, TechRadar, Android Central
+            {description}
           </motion.p>
           <NewsletterInput />
         </div>
 
-        {/* Right: Portrait placeholder - fade + scale */}
         <motion.div
-          className="aspect-square w-64 shrink-0 rounded-full bg-hot-gray"
+          className={wrapperClass}
           aria-hidden
           initial={{ opacity: 0, scale: 0.95 }}
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.5, ease: "easeOut", delay: 0.3 }}
-        />
+        >
+          {headshotUrl ? (
+            <img
+              src={headshotUrl}
+              alt=""
+              className="h-full w-full object-cover"
+            />
+          ) : null}
+        </motion.div>
       </div>
     </section>
   );

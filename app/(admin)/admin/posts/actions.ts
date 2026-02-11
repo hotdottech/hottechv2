@@ -97,6 +97,42 @@ export async function getPostById(id: string): Promise<PostRow | null> {
   } as PostRow;
 }
 
+export type PostSearchHit = { id: string; title: string | null };
+
+export async function searchPosts(query: string): Promise<PostSearchHit[]> {
+  const client = await createClient();
+  const q = (query ?? "").trim();
+  if (!q) return [];
+
+  const { data, error } = await client
+    .from("posts")
+    .select("id, title")
+    .ilike("title", `%${q}%`)
+    .order("created_at", { ascending: false })
+    .limit(20);
+
+  if (error) {
+    console.error("[searchPosts]", error);
+    return [];
+  }
+  return (data ?? []) as PostSearchHit[];
+}
+
+export async function getPostTitles(ids: string[]): Promise<PostSearchHit[]> {
+  if (ids.length === 0) return [];
+  const client = await createClient();
+  const { data, error } = await client
+    .from("posts")
+    .select("id, title")
+    .in("id", ids);
+
+  if (error) {
+    console.error("[getPostTitles]", error);
+    return [];
+  }
+  return (data ?? []) as PostSearchHit[];
+}
+
 export type PostTaxonomies = {
   categoryIds: number[];
   tagIds: number[];

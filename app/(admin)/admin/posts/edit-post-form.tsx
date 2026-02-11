@@ -1,16 +1,16 @@
 "use client";
 
-import { useState, useRef, useMemo } from "react";
+import { useState, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { TiptapEditor } from "@/components/editor/tiptap-editor";
-import { updatePost, createPost, uploadPostImage, type PostRow } from "./actions";
+import { updatePost, createPost, type PostRow } from "./actions";
 import { createTag } from "@/lib/actions/tags";
-import { compressImage } from "@/lib/image-compression";
 import type { CategoryRow } from "@/lib/actions/categories";
 import type { TagRow } from "@/lib/actions/tags";
 import type { ContentTypeRow } from "@/lib/actions/content-types";
 import { SidebarSection } from "@/app/components/admin/posts/SidebarSection";
 import { TagInput, type SelectedTag } from "@/app/components/admin/posts/TagInput";
+import { UniversalImagePicker } from "@/app/components/admin/shared/UniversalImagePicker";
 
 function toDatetimeLocal(iso: string | null): string {
   if (!iso) return "";
@@ -91,7 +91,6 @@ export function EditPostForm({
   );
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
-  const featuredInputRef = useRef<HTMLInputElement>(null);
 
   const categoryRows = useMemo(() => buildCategoryRows(categories), [categories]);
   const availableTagOptions = useMemo(
@@ -119,17 +118,6 @@ export function EditPostForm({
       else next.add(id);
       return next;
     });
-  }
-
-  async function handleFeaturedChange(e: React.ChangeEvent<HTMLInputElement>) {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const compressed = await compressImage(file);
-    const formData = new FormData();
-    formData.set("file", compressed);
-    const result = await uploadPostImage(formData);
-    e.target.value = "";
-    if (result.url) setFeaturedImageUrl(result.url);
   }
 
   async function handleSave(asDraft: boolean) {
@@ -405,40 +393,10 @@ export function EditPostForm({
         </SidebarSection>
 
         <SidebarSection title="Featured Image" defaultOpen={false}>
-          <input
-            ref={featuredInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={handleFeaturedChange}
+          <UniversalImagePicker
+            value={featuredImageUrl}
+            onChange={(url) => setFeaturedImageUrl(url || null)}
           />
-          {featuredImageUrl ? (
-            <div className="space-y-2">
-              <img
-                src={featuredImageUrl}
-                alt="Featured"
-                className="max-h-40 w-full rounded-md object-cover"
-              />
-              <button
-                type="button"
-                onClick={() => {
-                  setFeaturedImageUrl(null);
-                  featuredInputRef.current?.click();
-                }}
-                className="text-sm text-gray-400 hover:text-hot-white"
-              >
-                Change
-              </button>
-            </div>
-          ) : (
-            <button
-              type="button"
-              onClick={() => featuredInputRef.current?.click()}
-              className="flex w-full items-center justify-center rounded-md border border-dashed border-white/20 py-8 font-sans text-sm text-gray-400 transition-colors hover:border-white/30 hover:text-hot-white"
-            >
-              Upload image
-            </button>
-          )}
         </SidebarSection>
       </aside>
     </div>

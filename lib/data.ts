@@ -115,6 +115,44 @@ export async function getAuthoryFeed(): Promise<FeedItem[]> {
   }
 }
 
+/** Fetch posts by IDs and map to FeedItem[] in the order of ids. */
+export async function getPostsByIds(ids: string[]): Promise<FeedItem[]> {
+  if (ids.length === 0) return [];
+  const { data, error } = await supabase
+    .from("posts")
+    .select("id, title, slug, excerpt, main_image, featured_image, original_url, published_at, created_at, updated_at, type, source_name")
+    .in("id", ids)
+    .eq("status", "published");
+
+  if (error) {
+    console.error("[getPostsByIds]", error);
+    return [];
+  }
+  const byId = new Map<string, (typeof data)[0]>();
+  for (const row of data ?? []) {
+    byId.set(row.id, row);
+  }
+  return ids.filter((id) => byId.has(id)).map((id) => {
+    const post = byId.get(id)!;
+    const date = post.published_at ?? post.created_at ?? post.updated_at ?? new Date().toISOString();
+    const hasExternalUrl = post.original_url != null && String(post.original_url).trim() !== "";
+    const url = hasExternalUrl ? String(post.original_url) : `/${post.slug ?? post.id}`;
+    const image = post.featured_image ?? post.main_image ?? undefined;
+    const type = hasExternalUrl ? ("external-article" as const) : ("post" as const);
+    return {
+      id: post.id,
+      title: post.title ?? "Untitled",
+      excerpt: post.excerpt ?? undefined,
+      date,
+      type,
+      source: "internal" as const,
+      url,
+      image,
+      publisher: post.source_name ?? "House of Tech",
+    };
+  });
+}
+
 /** Published posts from Supabase for the unified feed. */
 export async function getSupabasePosts(): Promise<FeedItem[]> {
   const { data, error } = await supabase
