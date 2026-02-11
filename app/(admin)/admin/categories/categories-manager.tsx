@@ -196,7 +196,7 @@ export function CategoriesManager({ categories }: Props) {
                         >
                           Edit
                         </button>
-                        <form action={deleteCategory.bind(null, cat.id)} className="inline">
+                        <form action={async () => { await deleteCategory(cat.id) }} className="inline">
                           <button
                             type="submit"
                             className="rounded-md border border-red-500/50 px-3 py-1.5 font-sans text-sm text-red-400 transition-colors hover:bg-red-500/10"
