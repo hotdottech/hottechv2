@@ -6,8 +6,8 @@ export default async function AdminPostsPage() {
   const posts = await getPosts();
 
   return (
-    <div className="space-y-6 p-6 lg:p-10">
-      <div className="flex items-center justify-between">
+    <div className="flex h-full min-h-0 flex-col p-6 lg:p-10">
+      <div className="flex shrink-0 items-center justify-between">
         <h1 className="font-serif text-2xl font-bold text-hot-white">
           All Posts
         </h1>
@@ -19,8 +19,9 @@ export default async function AdminPostsPage() {
         </Link>
       </div>
 
-      <div className="overflow-hidden rounded-lg border border-white/10">
-        <table className="w-full table-fixed border-collapse font-sans">
+      <div className="min-h-0 flex-1 overflow-y-auto pt-6">
+        <div className="overflow-hidden rounded-lg border border-white/10">
+          <table className="w-full table-fixed border-collapse font-sans">
           <thead>
             <tr className="border-b border-white/10 bg-white/5">
               <th className="w-auto min-w-0 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">
@@ -40,7 +41,8 @@ export default async function AdminPostsPage() {
           <tbody>
             <PostsTable posts={posts} />
           </tbody>
-        </table>
+          </table>
+        </div>
       </div>
     </div>
   );
