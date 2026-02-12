@@ -3,6 +3,7 @@ import Image from "next/image";
 import { format } from "date-fns";
 import { getNewsletterBySlug } from "@/lib/data";
 import { NewsletterInput } from "@/components/home/newsletter-input";
+import { AdminEditShortcut } from "@/components/admin/AdminEditShortcut";
 import { createClient } from "@/utils/supabase/server";
 
 type PageProps = {
@@ -33,6 +34,7 @@ export default async function NewsletterPage({ params }: PageProps) {
 
   return (
     <>
+    <AdminEditShortcut url={`/admin/newsletters/${newsletter.id}`} />
     <article className={`mx-auto max-w-3xl px-4 py-12 sm:px-6 lg:px-8 ${isDraftPreview ? "pb-16" : ""}`}>
       <header className="mb-10">
         <h1 className="font-serif text-4xl font-bold text-hot-white md:text-5xl">

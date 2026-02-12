@@ -82,66 +82,67 @@ export async function getChartData(days: number = 30): Promise<ChartDataPoint[]>
   }));
 }
 
+type ContentAgg = {
+  total: number;
+  visitors: Set<string>;
+  title: string;
+  slug: string | null;
+};
+
 /**
- * Top 20 posts by total views (post_analytics joined with posts).
+ * Top 20 content items by total views (post_analytics: posts + homepage).
+ * Homepage: rows with path === '/' or !post_id, keyed as 'homepage'.
+ * Posts: keyed by post_id, title/slug from joined posts.
  */
 export async function getTopPosts(): Promise<TopPostRow[]> {
   const supabase = await createClient();
 
   const { data: rows, error } = await supabase
     .from("post_analytics")
-    .select("post_id, visitor_id");
+    .select("post_id, visitor_id, path, posts(title, slug)");
 
   if (error) {
     console.error("[getTopPosts]", error);
     return [];
   }
 
-  const byPost: Record<
-    string,
-    { total: number; visitors: Set<string> }
-  > = {};
+  const byKey: Record<string, ContentAgg> = {};
+
   for (const r of rows ?? []) {
-    const pid = (r as { post_id: string; visitor_id: string }).post_id;
-    const vid = (r as { post_id: string; visitor_id: string }).visitor_id;
-    if (!byPost[pid]) byPost[pid] = { total: 0, visitors: new Set() };
-    byPost[pid].total += 1;
-    byPost[pid].visitors.add(vid);
+    const pid = (r as { post_id: string | null; visitor_id: string; path?: string | null }).post_id;
+    const vid = (r as { post_id: string | null; visitor_id: string; path?: string | null }).visitor_id;
+    const path = (r as { post_id: string | null; visitor_id: string; path?: string | null }).path;
+    const posts = (r as { posts?: { title: string | null; slug: string | null } | null }).posts;
+
+    const key = path === "/" || pid == null ? "homepage" : pid;
+    if (!byKey[key]) {
+      byKey[key] = {
+        total: 0,
+        visitors: new Set(),
+        title: key === "homepage" ? "Homepage" : (posts?.title ?? "—") || "—",
+        slug: key === "homepage" ? "/" : (posts?.slug ?? null),
+      };
+    }
+    byKey[key].total += 1;
+    byKey[key].visitors.add(vid);
+    if (key !== "homepage" && posts && (byKey[key].title === "—" || !byKey[key].title)) {
+      byKey[key].title = posts.title ?? "—";
+      byKey[key].slug = posts.slug ?? null;
+    }
   }
 
-  const sorted = Object.entries(byPost)
+  const sorted = Object.entries(byKey)
     .map(([post_id, agg]) => ({
       post_id,
+      title: agg.title,
+      slug: agg.slug,
       total_views: agg.total,
       unique_visitors: agg.visitors.size,
     }))
     .sort((a, b) => b.total_views - a.total_views)
     .slice(0, 20);
 
-  if (sorted.length === 0) return [];
-
-  const { data: posts } = await supabase
-    .from("posts")
-    .select("id, title, slug")
-    .in("id", sorted.map((s) => s.post_id));
-
-  const postMap = new Map(
-    (posts ?? []).map((p) => [
-      (p as { id: string }).id,
-      p as { id: string; title: string; slug: string | null },
-    ])
-  );
-
-  return sorted.map((s) => {
-    const p = postMap.get(s.post_id);
-    return {
-      post_id: s.post_id,
-      title: p?.title ?? "—",
-      slug: p?.slug ?? null,
-      total_views: s.total_views,
-      unique_visitors: s.unique_visitors,
-    };
-  });
+  return sorted;
 }
 
 /**

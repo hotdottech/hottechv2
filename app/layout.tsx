@@ -3,6 +3,7 @@ import { Fraunces, Geist } from "next/font/google";
 import { constructMetadata } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { NewsletterProvider } from "@/components/newsletter/SubscribeModal";
+import { AdminDashboardShortcut } from "@/components/admin/AdminDashboardShortcut";
 import { getSiteSettings } from "@/lib/data";
 import { getBaseUrl } from "@/lib/url";
 import "./globals.css";
@@ -54,7 +55,10 @@ export default async function RootLayout({
         suppressHydrationWarning
       >
         <JsonLd data={webSiteSchema} />
-        <NewsletterProvider>{children}</NewsletterProvider>
+        <NewsletterProvider>
+          {children}
+          <AdminDashboardShortcut />
+        </NewsletterProvider>
       </body>
     </html>
   );

@@ -5,33 +5,41 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const slug = typeof body?.slug === "string" ? body.slug.trim() : null;
+    const path = typeof body?.path === "string" ? body.path.trim() : null;
     const visitorId = typeof body?.visitorId === "string" ? body.visitorId.trim() : null;
-    if (!slug || !visitorId) {
+    if (!visitorId || (!slug && !path)) {
       return NextResponse.json({ ok: true }, { status: 200 });
     }
     const referrer = typeof body?.referrer === "string" ? body.referrer.trim() || null : null;
     const userAgent = typeof body?.userAgent === "string" ? body.userAgent.trim() || null : null;
 
     const supabase = await createClient();
-    const { data: post, error: fetchError } = await supabase
-      .from("posts")
-      .select("id")
-      .eq("slug", slug)
-      .maybeSingle();
+    let postId: string | null = null;
 
-    if (fetchError || !post?.id) {
-      return NextResponse.json({ ok: true }, { status: 200 });
+    if (slug) {
+      const { data: post, error: fetchError } = await supabase
+        .from("posts")
+        .select("id")
+        .eq("slug", slug)
+        .maybeSingle();
+      if (!fetchError && post?.id) postId = post.id;
     }
 
-    const { error: insertError } = await supabase.from("post_analytics").insert({
-      post_id: post.id,
-      visitor_id: visitorId,
-      referrer,
-      user_agent: userAgent,
-    });
+    try {
+      const row: Record<string, unknown> = {
+        visitor_id: visitorId,
+        post_id: postId ?? null,
+        path: path ?? null,
+        referrer: referrer ?? null,
+        user_agent: userAgent ?? null,
+      };
+      const { error: insertError } = await supabase.from("post_analytics").insert(row);
 
-    if (insertError) {
-      console.error("[analytics/track]", insertError);
+      if (insertError) {
+        console.error("ANALYTICS ERROR:", insertError);
+      }
+    } catch (error) {
+      console.error("ANALYTICS ERROR:", error);
     }
     return NextResponse.json({ ok: true }, { status: 200 });
   } catch {

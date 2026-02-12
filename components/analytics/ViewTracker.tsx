@@ -4,8 +4,18 @@ import { useEffect, useRef } from "react";
 import { createBrowserClient } from "@supabase/ssr";
 
 const VISITOR_ID_KEY = "visitor_id";
-const DEBOUNCE_PREFIX = "viewed_post_";
+const DEBOUNCE_PREFIX_POST = "viewed_post_";
+const DEBOUNCE_PREFIX_PAGE = "viewed_page_";
 const DEBOUNCE_MS = 30 * 60 * 1000; // 30 minutes
+
+function sessionKey(slug: string | undefined, customPath: string | undefined): string {
+  if (slug) return `${DEBOUNCE_PREFIX_POST}${slug}`;
+  if (customPath !== undefined && customPath !== null) {
+    const pathNorm = customPath === "/" ? "home" : customPath.replace(/\//g, "_").replace(/^_/, "");
+    return `${DEBOUNCE_PREFIX_PAGE}${pathNorm}`;
+  }
+  return "";
+}
 
 function getSupabase() {
   return createBrowserClient(
@@ -28,16 +38,22 @@ function getOrCreateVisitorId(): string {
   }
 }
 
-export function ViewTracker({ slug }: { slug: string }) {
+export function ViewTracker({
+  slug,
+  customPath,
+}: {
+  slug?: string;
+  customPath?: string;
+}) {
   const fired = useRef(false);
+  const key = sessionKey(slug, customPath);
 
   useEffect(() => {
-    if (!slug || fired.current) return;
+    if (!key || fired.current) return;
 
     const run = async () => {
-      const sessionKey = `${DEBOUNCE_PREFIX}${slug}`;
       try {
-        const raw = sessionStorage.getItem(sessionKey);
+        const raw = sessionStorage.getItem(key);
         if (raw) {
           const at = parseInt(raw, 10);
           if (!Number.isNaN(at) && Date.now() - at < DEBOUNCE_MS) return;
@@ -53,21 +69,27 @@ export function ViewTracker({ slug }: { slug: string }) {
       const visitorId = getOrCreateVisitorId();
       if (!visitorId) return;
 
+      const payload: Record<string, unknown> = {
+        visitorId,
+        referrer: typeof document !== "undefined" ? document.referrer || null : null,
+        userAgent: typeof navigator !== "undefined" ? navigator.userAgent || null : null,
+      };
+      if (customPath !== undefined && customPath !== null) {
+        payload.path = customPath;
+      } else if (slug) {
+        payload.slug = slug;
+      }
+
       try {
         const res = await fetch("/api/analytics/track", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            slug,
-            visitorId,
-            referrer: typeof document !== "undefined" ? document.referrer || null : null,
-            userAgent: typeof navigator !== "undefined" ? navigator.userAgent || null : null,
-          }),
+          body: JSON.stringify(payload),
         });
         if (res.ok) {
           fired.current = true;
           try {
-            sessionStorage.setItem(sessionKey, String(Date.now()));
+            sessionStorage.setItem(key, String(Date.now()));
           } catch {
             // ignore
           }
@@ -78,7 +100,7 @@ export function ViewTracker({ slug }: { slug: string }) {
     };
 
     run();
-  }, [slug]);
+  }, [key, slug, customPath]);
 
   return null;
 }

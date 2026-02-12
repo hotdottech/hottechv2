@@ -12,6 +12,7 @@ import { SocialPresence } from "@/components/home/social-presence";
 import { Navbar } from "@/components/layout/navbar";
 import { Footer } from "@/components/layout/footer";
 import { ReactiveBackground } from "@/components/layout/reactive-background";
+import { ViewTracker } from "@/components/analytics/ViewTracker";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
@@ -58,6 +59,7 @@ export default async function Home() {
 
   return (
     <>
+      <ViewTracker customPath="/" />
       <ReactiveBackground />
       <Navbar settings={settings} />
       <main className="min-h-screen pt-20">
