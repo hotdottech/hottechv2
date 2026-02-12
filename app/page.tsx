@@ -15,7 +15,7 @@ import { ReactiveBackground } from "@/components/layout/reactive-background";
 import { ViewTracker } from "@/components/analytics/ViewTracker";
 
 export const runtime = "nodejs";
-export const dynamic = "force-dynamic";
+export const revalidate = 3600;
 
 export default async function Home() {
   const [feed, settings] = await Promise.all([

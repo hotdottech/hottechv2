@@ -1,5 +1,7 @@
 import type { Metadata } from "next";
 import Image from "next/image";
+
+export const revalidate = 3600;
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { format } from "date-fns";
