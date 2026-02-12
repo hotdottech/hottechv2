@@ -25,7 +25,7 @@ export default async function EditPostPage({ params }: PageProps) {
   }
 
   return (
-    <div className="space-y-6 p-6 lg:p-10">
+    <div className="min-h-screen h-full overflow-y-auto space-y-6 p-6 lg:p-10">
       <div className="flex items-center gap-4">
         <Link
           href="/admin/posts"

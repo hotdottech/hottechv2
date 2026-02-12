@@ -237,7 +237,7 @@ export function EditPostForm({
 
   return (
     <div className="flex flex-col gap-6 lg:flex-row lg:gap-8">
-      <div className="min-w-0 flex-1 space-y-6 lg:max-w-[66.666%]">
+      <div className="min-w-0 flex-1 space-y-6 p-6 lg:max-w-[66.666%]">
         <div>
           <label className="block font-sans text-sm font-medium text-gray-400">
             Title
@@ -285,7 +285,7 @@ export function EditPostForm({
         )}
       </div>
 
-      <aside className="sticky top-20 h-[calc(100vh-100px)] w-full shrink-0 overflow-y-auto space-y-4 lg:w-[33.333%]">
+      <aside className="sticky top-20 h-fit w-full shrink-0 space-y-4 p-4 lg:w-[33.333%]">
         {error && (
           <div className="rounded-md bg-red-500/10 px-4 py-3 text-sm text-red-400">
             {error}
