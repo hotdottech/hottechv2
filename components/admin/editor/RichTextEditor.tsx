@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState } from "react";
+import { useCallback, useState, useEffect, useRef } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
@@ -9,6 +9,7 @@ import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import { PostCard } from "./extensions/PostCard";
 import { SocialCard } from "./extensions/SocialCard";
+import { SponsorBlockExtension, SPONSOR_BLOCK_EDIT_EVENT } from "./extensions/SponsorBlock";
 import {
   Bold,
   Italic,
@@ -23,11 +24,15 @@ import {
   Youtube,
   FileText,
   Share2,
+  Handshake,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { MediaPickerModal } from "@/app/components/admin/media/MediaPickerModal";
 import { PostPickerModal } from "@/components/admin/media/PostPickerModal";
+import { SponsorBlockModal } from "@/app/components/admin/posts/SponsorBlockModal";
 import type { PostPickerPost } from "@/lib/actions/post-picker";
+import type { SponsorBlockData } from "@/lib/types/post";
+import { DEFAULT_SPONSOR_BLOCK_DATA } from "@/lib/types/post";
 
 function getYoutubeId(url: string): string | null {
   const trimmed = url.trim();
@@ -88,6 +93,9 @@ export function RichTextEditor({
 }: RichTextEditorProps) {
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const [postPickerOpen, setPostPickerOpen] = useState(false);
+  const [sponsorModalOpen, setSponsorModalOpen] = useState(false);
+  const [sponsorModalInitialData, setSponsorModalInitialData] = useState<SponsorBlockData>(DEFAULT_SPONSOR_BLOCK_DATA);
+  const sponsorEditPositionRef = useRef<number | null>(null);
 
   const editor = useEditor({
     immediatelyRender: false,
@@ -99,6 +107,7 @@ export function RichTextEditor({
       Image.configure({ inline: false, allowBase64: false }),
       PostCard,
       SocialCard,
+      SponsorBlockExtension,
       Link.configure({ openOnClick: false, HTMLAttributes: { class: "text-hot-blue underline" } }),
       TextAlign.configure({ types: ["heading", "paragraph"] }),
       Placeholder.configure({ placeholder }),
@@ -177,6 +186,40 @@ export function RichTextEditor({
     },
     [editor]
   );
+
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const ev = e as CustomEvent<{ data: SponsorBlockData; position: number }>;
+      const { data, position } = ev.detail ?? {};
+      if (data == null || typeof position !== "number") return;
+      setSponsorModalInitialData(data);
+      sponsorEditPositionRef.current = position;
+      setSponsorModalOpen(true);
+    };
+    window.addEventListener(SPONSOR_BLOCK_EDIT_EVENT, handler);
+    return () => window.removeEventListener(SPONSOR_BLOCK_EDIT_EVENT, handler);
+  }, []);
+
+  const handleSponsorSave = useCallback(
+    (data: SponsorBlockData) => {
+      if (!editor) return;
+      const pos = sponsorEditPositionRef.current;
+      if (pos !== null) {
+        editor.chain().focus().setNodeSelection(pos).updateAttributes("sponsorBlock", { data: JSON.stringify(data) }).run();
+        sponsorEditPositionRef.current = null;
+      } else {
+        editor.chain().focus().setSponsorBlock(data).run();
+      }
+      setSponsorModalOpen(false);
+    },
+    [editor]
+  );
+
+  const openSponsorModalForInsert = useCallback(() => {
+    sponsorEditPositionRef.current = null;
+    setSponsorModalInitialData(DEFAULT_SPONSOR_BLOCK_DATA);
+    setSponsorModalOpen(true);
+  }, []);
 
   if (!editor) return null;
 
@@ -265,10 +308,13 @@ export function RichTextEditor({
         <ToolbarButton onClick={handleSocialEmbed} title="Social embed (TikTok, Instagram, X)">
           <Share2 className="h-4 w-4" />
         </ToolbarButton>
+        <ToolbarButton onClick={openSponsorModalForInsert} title="Sponsor block">
+          <Handshake className="h-4 w-4" />
+        </ToolbarButton>
       </div>
       <EditorContent
         editor={editor}
-        className="prose prose-invert max-w-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h1]:text-3xl [&_h2]:text-2xl [&_h3]:text-xl [&_.ProseMirror_img]:max-w-full [&_.ProseMirror_img]:h-auto [&_.ProseMirror_img]:rounded-md [&_.content-card]:my-4 [&_.youtube-embed]:my-4"
+        className="prose prose-invert max-w-none [&_ul]:list-disc [&_ul]:pl-5 [&_ol]:list-decimal [&_ol]:pl-5 [&_h1]:text-3xl [&_h2]:text-2xl [&_h3]:text-xl [&_.ProseMirror_img]:max-w-full [&_.ProseMirror_img]:h-auto [&_.ProseMirror_img]:rounded-md [&_.content-card]:my-4 [&_.youtube-embed]:my-4 [&_[data-type=sponsor-block]]:my-4"
       />
 
       <MediaPickerModal
@@ -280,6 +326,15 @@ export function RichTextEditor({
         isOpen={postPickerOpen}
         onClose={() => setPostPickerOpen(false)}
         onSelect={handlePostSelect}
+      />
+      <SponsorBlockModal
+        isOpen={sponsorModalOpen}
+        onClose={() => {
+          setSponsorModalOpen(false);
+          sponsorEditPositionRef.current = null;
+        }}
+        onSave={handleSponsorSave}
+        initialData={sponsorModalInitialData}
       />
     </div>
   );

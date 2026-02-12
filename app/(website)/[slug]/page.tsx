@@ -9,6 +9,9 @@ import { constructMetadata } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { PreviewBanner } from "@/components/posts/PreviewBanner";
 import { ShowcaseGrid } from "@/components/posts/ShowcaseGrid";
+import { PostBody } from "@/components/posts/PostBody";
+import { SponsorBlock } from "@/components/posts/SponsorBlock";
+import type { SponsorBlockData } from "@/lib/types/post";
 import { SocialEmbedEnhancer } from "@/components/posts/SocialEmbedEnhancer";
 import { ViewTracker } from "@/components/analytics/ViewTracker";
 import { AdminEditShortcut } from "@/components/admin/AdminEditShortcut";
@@ -128,12 +131,21 @@ export default async function ArticlePage({ params }: PageProps) {
         </div>
       )}
 
-      <div
+      <PostBody
+        html={(post as { content?: string; body?: string }).content || post.body || ""}
         className="prose prose-lg prose-invert mx-auto max-w-2xl max-w-none"
-        dangerouslySetInnerHTML={{
-          __html: (post as { content?: string; body?: string }).content || post.body || "",
-        }}
       />
+      {(() => {
+        const opts = (post as { display_options?: Record<string, unknown> }).display_options;
+        const sponsorBlock = opts?.sponsor_block as SponsorBlockData | undefined;
+        return (
+          sponsorBlock &&
+          Array.isArray(sponsorBlock.items) &&
+          sponsorBlock.items.length > 0 && (
+            <SponsorBlock data={sponsorBlock} />
+          )
+        );
+      })()}
       {post.content_type_slug?.startsWith("showcase_") &&
         Array.isArray(post.showcase_data) &&
         post.showcase_data.length > 0 && (
