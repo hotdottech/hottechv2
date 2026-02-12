@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { format } from "date-fns";
 import { getPosts } from "./actions";
 import { PostsTable } from "./posts-table";
 
@@ -21,19 +20,19 @@ export default async function AdminPostsPage() {
       </div>
 
       <div className="overflow-hidden rounded-lg border border-white/10">
-        <table className="w-full border-collapse font-sans">
+        <table className="w-full table-fixed border-collapse font-sans">
           <thead>
             <tr className="border-b border-white/10 bg-white/5">
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">
+              <th className="w-auto min-w-0 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">
                 Title
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">
+              <th className="w-32 shrink-0 px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-400">
                 Status
               </th>
-              <th className="px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">
+              <th className="w-48 shrink-0 px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-400">
                 Date
               </th>
-              <th className="px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-400">
+              <th className="w-[120px] shrink-0 px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-400">
                 Actions
               </th>
             </tr>

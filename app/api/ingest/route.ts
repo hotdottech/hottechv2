@@ -3,11 +3,16 @@ import OpenAI from "openai";
 import { createClient } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
 
-type ClassificationResult = {
-  category_ids?: number[];
-  tag_ids?: number[];
-  content_type_id?: number | null;
+/** AI returns names; we resolve to DB IDs using pre-fetched maps. */
+type NameBasedClassification = {
+  category?: string;
+  tags?: string[];
+  content_type?: string | null;
 };
+
+function normalizeName(s: string | undefined | null): string {
+  return (s ?? "").trim().toLowerCase();
+}
 
 const AUTHORY_FEED_URL = "https://authory.com/hot/rss";
 const PLACEHOLDER_IMAGE = "https://placehold.co/600x400/1a1a1a/FFF";
@@ -100,26 +105,34 @@ function extractSlugFromUrl(url: string, titleFallback: string): string {
   return slugify(titleFallback);
 }
 
-/** Call OpenAI to classify article into category_ids, tag_ids, content_type_id. Returns null on failure. */
+/** Call OpenAI to classify article by NAME. Returns default (e.g. News) on parse failure or missing API key. */
 async function classifyContent(
   title: string,
   summary: string,
-  categoriesList: string,
-  tagsList: string,
-  contentTypesList: string
-): Promise<ClassificationResult | null> {
+  categoryNamesList: string,
+  tagNamesList: string,
+  contentTypeNamesList: string,
+  defaultCategoryName: string
+): Promise<NameBasedClassification> {
+  const fallback: NameBasedClassification = {
+    category: defaultCategoryName,
+    tags: [],
+    content_type: null,
+  };
   const apiKey = process.env.OPENAI_API_KEY;
   if (!apiKey) {
-    console.warn("[ingest] OPENAI_API_KEY missing; skipping classification.");
-    return null;
+    console.warn("[ingest] OPENAI_API_KEY missing; using default category.");
+    return fallback;
   }
   try {
     const client = new OpenAI({ apiKey });
     const userContent = `Article: ${title} - ${summary || "(no summary)"}
 
-Categories: ${categoriesList}
-Tags: ${tagsList}
-Content Types: ${contentTypesList}`;
+Allowed Categories: ${categoryNamesList}
+Allowed Tags: ${tagNamesList}
+Allowed Content Types: ${contentTypeNamesList}
+
+Match the article to the best category and optional tags/content type. Use EXACTLY the names from the lists above.`;
 
     const completion = await client.chat.completions.create({
       model: "gpt-4o-mini",
@@ -127,7 +140,7 @@ Content Types: ${contentTypesList}`;
         {
           role: "system",
           content:
-            "You are an expert tech editor. Analyze the article title and summary. Match them to the provided IDs for Categories, Tags, and Content Types. Return a JSON object with keys: category_ids (array of integers), tag_ids (array of integers), content_type_id (single integer or null). Do not invent new tags; only use the provided IDs.",
+            "You are a CMS content classifier. Use EXACTLY the provided list of Categories and Tags. Return JSON only in this format: { \"category\": \"Name\", \"tags\": [\"Tag1\", \"Tag2\"], \"content_type\": \"Name\" }. category must be one of the Allowed Categories. tags must be a subset of Allowed Tags. content_type must be one of the Allowed Content Types or null. Do not invent new names.",
         },
         { role: "user", content: userContent },
       ],
@@ -135,12 +148,17 @@ Content Types: ${contentTypesList}`;
     });
 
     const raw = completion.choices[0]?.message?.content;
-    if (!raw) return null;
-    const parsed = JSON.parse(raw) as ClassificationResult;
-    return parsed;
+    if (!raw) return fallback;
+    try {
+      const parsed = JSON.parse(raw) as NameBasedClassification;
+      return parsed;
+    } catch (parseErr) {
+      console.warn("[ingest] OpenAI response JSON.parse failed, using default category:", parseErr);
+      return fallback;
+    }
   } catch (err) {
     console.warn("[ingest] OpenAI classification failed:", err);
-    return null;
+    return fallback;
   }
 }
 
@@ -159,21 +177,44 @@ export async function GET() {
       },
     });
 
-    // Fetch taxonomies (the menu for AI)
+    // Task 1: Pre-fetch database metadata (before looping)
     const [catRes, tagRes, ctRes] = await Promise.all([
       supabase.from("categories").select("id, name").order("name"),
       supabase.from("tags").select("id, name").order("name"),
-      supabase.from("content_types").select("id, name").order("name"),
+      supabase.from("content_types").select("id, name, slug").order("name"),
     ]);
-    const categoriesList = (catRes.data ?? [])
-      .map((r: { id: number; name: string | null }) => `${r.id}: ${r.name ?? ""}`)
-      .join("\n");
-    const tagsList = (tagRes.data ?? [])
-      .map((r: { id: number; name: string | null }) => `${r.id}: ${r.name ?? ""}`)
-      .join("\n");
-    const contentTypesList = (ctRes.data ?? [])
-      .map((r: { id: number; name: string | null }) => `${r.id}: ${r.name ?? ""}`)
-      .join("\n");
+    const categories = (catRes.data ?? []) as { id: number; name: string | null }[];
+    const tags = (tagRes.data ?? []) as { id: number; name: string | null }[];
+    const contentTypes = (ctRes.data ?? []) as { id: number; name: string | null; slug?: string | null }[];
+
+    const validCategories = new Map<string, number>();
+    for (const r of categories) {
+      const n = (r.name ?? "").trim();
+      if (n) validCategories.set(normalizeName(n), r.id);
+    }
+    const validTags = new Map<string, number>();
+    for (const r of tags) {
+      const n = (r.name ?? "").trim();
+      if (n) validTags.set(normalizeName(n), r.id);
+    }
+    const validContentTypes = new Map<string, number>();
+    for (const r of contentTypes) {
+      const n = (r.name ?? "").trim();
+      if (n) validContentTypes.set(normalizeName(n), r.id);
+    }
+
+    const defaultCategoryName =
+      categories.find((r) => normalizeName(r.name) === "news")?.name?.trim() ??
+      categories[0]?.name?.trim() ??
+      "";
+    const defaultCategoryId =
+      categories.find((r) => (r.name ?? "").toLowerCase() === "news")?.id ??
+      categories[0]?.id ??
+      null;
+
+    const categoryNamesList = categories.map((r) => r.name ?? "").filter(Boolean).join(", ");
+    const tagNamesList = tags.map((r) => r.name ?? "").filter(Boolean).join(", ");
+    const contentTypeNamesList = contentTypes.map((r) => r.name ?? "").filter(Boolean).join(", ");
 
     // Step 1: Fetch & Sanitize
     const response = await fetch(AUTHORY_FEED_URL, {
@@ -192,24 +233,43 @@ export async function GET() {
     // Step 2: Parse
     const feed = await parser.parseString(cleanXml);
     const items = (feed.items ?? []) as AuthoryRssItem[];
-    const itemsToProcess = items.slice(0, 5);
+    const itemsToProcess = items.slice(0, 10);
     let added = 0;
     let skipped = 0;
 
-    // Step 3: Loop & Upsert (limit to first 5)
+    // Step 3: Loop & Upsert (limit 10 for testing; duplicate check by guid/original_url/slug)
     for (let i = 0; i < itemsToProcess.length; i++) {
       const item = itemsToProcess[i];
       const guid = item.guid ?? item.link ?? null;
       if (!guid) continue;
 
-      const title = item.title?.trim() ?? "Untitled";
       const link = item.link ?? "";
+      const guidStr = typeof guid === "string" ? guid : String(guid);
+
+      const { data: existingByGuid } = await supabase
+        .from("posts")
+        .select("id")
+        .eq("guid", guidStr)
+        .maybeSingle();
+      if (existingByGuid) {
+        skipped++;
+        continue;
+      }
+      if (link) {
+        const { data: existingByUrl } = await supabase
+          .from("posts")
+          .select("id")
+          .eq("original_url", link)
+          .maybeSingle();
+        if (existingByUrl) {
+          skipped++;
+          continue;
+        }
+      }
+
+      const title = item.title?.trim() ?? "Untitled";
       const slugBase = extractSlugFromUrl(link, title);
-      const slugSuffix =
-        (typeof guid === "string" ? guid.slice(-8) : String(guid).slice(-8)).replace(
-          /[^a-z0-9]/gi,
-          ""
-        ) || Date.now().toString(36);
+      const slugSuffix = guidStr.slice(-8).replace(/[^a-z0-9]/gi, "") || Date.now().toString(36);
       let slug = slugBase ? `${slugBase}-${slugSuffix}` : slugify(title, slugSuffix);
 
       const { data: slugExists } = await supabase
@@ -245,7 +305,7 @@ export async function GET() {
           published_at,
           created_at: published_at,
           status: "published",
-          guid,
+          guid: guidStr,
           meta_title: title,
           meta_description: snippet,
           canonical_url: link || null,
@@ -266,44 +326,49 @@ export async function GET() {
       const postId = (newPost as { id: string })?.id;
       if (!postId) continue;
 
-      // AI classification (optional; continue without taxonomy on failure)
+      // AI classification (returns names; we resolve to IDs with strict matching)
       const classification = await classifyContent(
         title,
         snippet ?? "",
-        categoriesList,
-        tagsList,
-        contentTypesList
+        categoryNamesList,
+        tagNamesList,
+        contentTypeNamesList,
+        defaultCategoryName
       );
 
-      if (classification) {
-        const catIds = Array.isArray(classification.category_ids)
-          ? classification.category_ids.filter((n) => Number.isInteger(n))
-          : [];
-        const tagIds = Array.isArray(classification.tag_ids)
-          ? classification.tag_ids.filter((n) => Number.isInteger(n))
-          : [];
-        const contentTypeId =
-          classification.content_type_id != null &&
-          Number.isInteger(classification.content_type_id)
-            ? classification.content_type_id
-            : null;
+      const categoryId =
+        (classification.category != null && validCategories.get(normalizeName(classification.category))) ??
+        defaultCategoryId;
 
-        if (catIds.length > 0) {
-          await supabase.from("post_categories").insert(
-            catIds.map((category_id) => ({ post_id: postId, category_id }))
-          );
+      const tagIds: number[] = [];
+      if (Array.isArray(classification.tags)) {
+        for (const t of classification.tags) {
+          const id = validTags.get(normalizeName(t));
+          if (id != null) tagIds.push(id);
         }
-        if (tagIds.length > 0) {
-          await supabase.from("post_tags").insert(
-            tagIds.map((tag_id) => ({ post_id: postId, tag_id }))
-          );
-        }
-        if (contentTypeId != null) {
-          await supabase.from("post_content_types").insert({
-            post_id: postId,
-            content_type_id: contentTypeId,
-          });
-        }
+      }
+
+      const contentTypeId =
+        classification.content_type != null
+          ? validContentTypes.get(normalizeName(classification.content_type)) ?? null
+          : null;
+
+      if (categoryId != null) {
+        await supabase.from("post_categories").insert({
+          post_id: postId,
+          category_id: categoryId,
+        });
+      }
+      if (tagIds.length > 0) {
+        await supabase.from("post_tags").insert(
+          tagIds.map((tag_id) => ({ post_id: postId, tag_id }))
+        );
+      }
+      if (contentTypeId != null) {
+        await supabase.from("post_content_types").insert({
+          post_id: postId,
+          content_type_id: contentTypeId,
+        });
       }
     }
 

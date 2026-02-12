@@ -5,13 +5,32 @@ import { format } from "date-fns";
 import type { PostRow } from "./actions";
 import { deletePost } from "./actions";
 
-export function PostsTable({ posts }: { posts: PostRow[] }) {
-  async function handleDelete(id: string) {
+function PostRowActions({ id }: { id: string }) {
+  async function handleDelete() {
     if (!window.confirm("Delete this post?")) return;
     await deletePost(id);
     window.location.reload();
   }
+  return (
+    <div className="flex flex-row items-center justify-end gap-3">
+      <Link
+        href={`/admin/posts/${id}`}
+        className="text-sm text-hot-white/80 hover:text-hot-white"
+      >
+        Edit
+      </Link>
+      <button
+        type="button"
+        onClick={handleDelete}
+        className="cursor-pointer text-sm text-red-400 hover:text-red-300"
+      >
+        Delete
+      </button>
+    </div>
+  );
+}
 
+export function PostsTable({ posts }: { posts: PostRow[] }) {
   if (posts.length === 0) {
     return (
       <tr>
@@ -33,15 +52,16 @@ export function PostsTable({ posts }: { posts: PostRow[] }) {
           key={post.id}
           className="border-b border-white/5 transition-colors hover:bg-white/5"
         >
-          <td className="px-4 py-3">
+          <td className="min-w-0 px-4 py-3">
             <Link
               href={`/admin/posts/${post.id}`}
-              className="font-medium text-hot-white hover:underline"
+              className="block truncate font-medium text-hot-white hover:underline"
+              title={post.title || "Untitled"}
             >
               {post.title || "Untitled"}
             </Link>
           </td>
-          <td className="px-4 py-3">
+          <td className="w-32 shrink-0 px-4 py-3 text-right">
             <span
               className={
                 post.status === "published"
@@ -52,25 +72,13 @@ export function PostsTable({ posts }: { posts: PostRow[] }) {
               {post.status === "published" ? "Published" : "Draft"}
             </span>
           </td>
-          <td className="px-4 py-3 text-gray-400">
+          <td className="w-48 shrink-0 px-4 py-3 text-right text-gray-400">
             {post.created_at
-              ? format(new Date(post.created_at), "MMM d, yyyy")
+              ? format(new Date(post.created_at), "MMM d, yyyy • HH:mm")
               : "—"}
           </td>
-          <td className="px-4 py-3 text-right">
-            <Link
-              href={`/admin/posts/${post.id}`}
-              className="mr-3 text-sm text-hot-white/80 hover:text-hot-white"
-            >
-              Edit
-            </Link>
-            <button
-              type="button"
-              onClick={() => handleDelete(post.id)}
-              className="text-sm text-red-400 hover:text-red-300"
-            >
-              Delete
-            </button>
+          <td className="w-[120px] shrink-0 px-4 py-3 text-right">
+            <PostRowActions id={post.id} />
           </td>
         </tr>
       ))}
