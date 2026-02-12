@@ -1,4 +1,5 @@
 import Parser from "rss-parser";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import { unstable_cache } from "next/cache";
 import { parseISO } from "date-fns";
 import { supabase } from "./supabase";
@@ -485,6 +486,64 @@ export async function getPostBySlug(slug: string): Promise<SupabasePost | null> 
     ...data,
     body: data.content != null ? String(data.content) : null,
     featured_image: data.main_image != null ? String(data.main_image) : null,
+    content_type_slug,
+    showcase_data: Array.isArray(showcaseData) ? showcaseData : [],
+    display_options: displayOptions != null && typeof displayOptions === "object" && !Array.isArray(displayOptions) ? (displayOptions as Record<string, unknown>) : {},
+    user_id: data.user_id != null ? String(data.user_id) : null,
+  } as SupabasePost;
+}
+
+/** Post by ID for admin draft preview. Returns SupabasePost shape with draft_* overrides. No status filter — fetches regardless of published state. */
+export async function getPostByIdForPreview(id: string): Promise<SupabasePost | null> {
+  return getPostByIdForPreviewWithClient(supabase, id);
+}
+
+/** Same as getPostByIdForPreview but uses the given client (e.g. server createClient() with session for RLS). */
+export async function getPostByIdForPreviewWithClient(
+  client: SupabaseClient,
+  id: string
+): Promise<SupabasePost | null> {
+  const { data, error } = await client
+    .from("posts")
+    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at, published_at, source_name, showcase_data, display_options, user_id, draft_title, draft_summary, draft_content, draft_hero_image")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (error) {
+    console.error("[getPostByIdForPreview]", error);
+    return null;
+  }
+  if (!data) return null;
+
+  let content_type_slug: string | null = null;
+  const { data: pct } = await client
+    .from("post_content_types")
+    .select("content_type_id")
+    .eq("post_id", data.id)
+    .maybeSingle();
+  if (pct?.content_type_id != null) {
+    const { data: ct } = await client
+      .from("content_types")
+      .select("slug")
+      .eq("id", pct.content_type_id)
+      .maybeSingle();
+    content_type_slug = ct?.slug ?? null;
+  }
+
+  const raw = data as Record<string, unknown>;
+  const draftTitle = raw.draft_title as string | null | undefined;
+  const draftSummary = raw.draft_summary as string | null | undefined;
+  const draftContent = raw.draft_content as string | null | undefined;
+  const draftHero = raw.draft_hero_image as string | null | undefined;
+
+  const showcaseData = data.showcase_data;
+  const displayOptions = data.display_options;
+  return {
+    ...data,
+    title: draftTitle ?? data.title,
+    excerpt: draftSummary ?? data.excerpt ?? null,
+    body: draftContent != null ? String(draftContent) : (data.content != null ? String(data.content) : null),
+    featured_image: draftHero != null ? String(draftHero) : (data.main_image != null ? String(data.main_image) : null),
     content_type_slug,
     showcase_data: Array.isArray(showcaseData) ? showcaseData : [],
     display_options: displayOptions != null && typeof displayOptions === "object" && !Array.isArray(displayOptions) ? (displayOptions as Record<string, unknown>) : {},

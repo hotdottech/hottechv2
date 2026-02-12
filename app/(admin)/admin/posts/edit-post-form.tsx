@@ -501,8 +501,8 @@ export function EditPostForm({
             </div>
             <button
               type="button"
-              onClick={() => window.open("/" + slug, "_blank")}
-              disabled={!slug?.trim()}
+              onClick={() => { if (post?.id) window.open(`/admin/preview/${post.id}`, "_blank"); }}
+              disabled={!post?.id}
               className="flex w-full items-center justify-center gap-2 rounded-md border border-white/20 bg-white/5 py-2 font-sans text-sm font-medium text-hot-white transition-colors hover:bg-white/10 disabled:opacity-50 disabled:pointer-events-none"
             >
               <Eye className="h-4 w-4" />
