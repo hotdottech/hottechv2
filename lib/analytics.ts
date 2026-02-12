@@ -109,25 +109,30 @@ export async function getTopPosts(): Promise<TopPostRow[]> {
   const byKey: Record<string, ContentAgg> = {};
 
   for (const r of rows ?? []) {
-    const pid = (r as { post_id: string | null; visitor_id: string; path?: string | null }).post_id;
-    const vid = (r as { post_id: string | null; visitor_id: string; path?: string | null }).visitor_id;
-    const path = (r as { post_id: string | null; visitor_id: string; path?: string | null }).path;
-    const posts = (r as { posts?: { title: string | null; slug: string | null } | null }).posts;
+    // Force cast to any to handle Supabase returning arrays for joined relations
+    const row = r as any;
+    const vid = row.visitor_id;
+    const path = row.path;
+    const pid = row.post_id;
+    // Handle case where posts might be an array (Supabase default) or object
+    const postsData = row.posts;
+    const postTitle = Array.isArray(postsData) ? postsData[0]?.title : postsData?.title;
+    const postSlug = Array.isArray(postsData) ? postsData[0]?.slug : postsData?.slug;
 
     const key = path === "/" || pid == null ? "homepage" : pid;
     if (!byKey[key]) {
       byKey[key] = {
         total: 0,
         visitors: new Set(),
-        title: key === "homepage" ? "Homepage" : (posts?.title ?? "—") || "—",
-        slug: key === "homepage" ? "/" : (posts?.slug ?? null),
+        title: key === "homepage" ? "Homepage" : (postTitle ?? "—") || "—",
+        slug: key === "homepage" ? "/" : (postSlug ?? null),
       };
     }
     byKey[key].total += 1;
     byKey[key].visitors.add(vid);
-    if (key !== "homepage" && posts && (byKey[key].title === "—" || !byKey[key].title)) {
-      byKey[key].title = posts.title ?? "—";
-      byKey[key].slug = posts.slug ?? null;
+    if (key !== "homepage" && (postTitle != null || postSlug != null) && (byKey[key].title === "—" || !byKey[key].title)) {
+      byKey[key].title = postTitle ?? "—";
+      byKey[key].slug = postSlug ?? null;
     }
   }
 
