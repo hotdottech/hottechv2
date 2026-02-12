@@ -340,6 +340,7 @@ export async function updatePost(
 
   revalidatePath("/admin/posts");
   revalidatePath(`/admin/posts/${id}`);
+  revalidatePath(`/admin/preview/${id}`);
   return { success: true, message: "Draft saved" };
 }
 

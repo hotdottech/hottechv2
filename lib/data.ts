@@ -1,6 +1,6 @@
 import Parser from "rss-parser";
 import type { SupabaseClient } from "@supabase/supabase-js";
-import { unstable_cache } from "next/cache";
+import { unstable_cache, unstable_noStore } from "next/cache";
 import { parseISO } from "date-fns";
 import { supabase } from "./supabase";
 import type { FeedItem, SiteSettings } from "./types";
@@ -503,6 +503,7 @@ export async function getPostByIdForPreviewWithClient(
   client: SupabaseClient,
   id: string
 ): Promise<SupabasePost | null> {
+  unstable_noStore();
   const { data, error } = await client
     .from("posts")
     .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at, published_at, source_name, showcase_data, display_options, user_id, draft_title, draft_summary, draft_content, draft_hero_image")

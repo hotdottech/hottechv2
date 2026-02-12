@@ -4,7 +4,7 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Eye } from "lucide-react";
-import { RichTextEditor } from "@/components/admin/editor/RichTextEditor";
+import { RichTextEditor, type RichTextEditorHandle } from "@/components/admin/editor/RichTextEditor";
 import { updatePost, createPost, publishPost, type PostRow } from "./actions";
 import { createTag } from "@/lib/actions/tags";
 import type { CategoryRow } from "@/lib/actions/categories";
@@ -114,6 +114,7 @@ export function EditPostForm({
   const [isPublishing, setIsPublishing] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const editorRef = useRef<RichTextEditorHandle>(null);
 
   const categoryRows = useMemo(() => buildCategoryRows(categories), [categories]);
   const selectedContentTypeSlug =
@@ -202,11 +203,12 @@ export function EditPostForm({
       if (res.id != null) createdIds.push(res.id);
     }
     const finalTagIds = [...existingTagIds, ...createdIds];
+    const latestContent = editorRef.current?.getHTML() ?? body;
     const formData = new FormData();
     formData.set("title", title);
     formData.set("slug", slug);
     formData.set("excerpt", excerpt);
-    formData.set("body", body);
+    formData.set("body", latestContent);
     formData.set("featured_image", featuredImageUrl ?? "");
     formData.set("status", "draft");
     if (publishedAt) formData.set("published_at", publishedAt);
@@ -336,6 +338,7 @@ export function EditPostForm({
             Body
           </label>
           <RichTextEditor
+            ref={editorRef}
             content={body}
             onChange={setBody}
             placeholder="Write your story…"

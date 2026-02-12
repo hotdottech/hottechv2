@@ -1,77 +1,139 @@
-import type { Metadata } from "next";
+"use client";
+
+import { useState, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { useParams } from "next/navigation";
 import { format } from "date-fns";
 import { ArrowLeft } from "lucide-react";
-import { getPostByIdForPreviewWithClient } from "@/lib/data";
-import { JsonLd } from "@/components/seo/JsonLd";
+import { createBrowserClient } from "@supabase/ssr";
 import { ShowcaseGrid } from "@/components/posts/ShowcaseGrid";
 import { PostBody } from "@/components/posts/PostBody";
 import { SponsorBlock } from "@/components/posts/SponsorBlock";
 import type { SponsorBlockData } from "@/lib/types/post";
 import { SocialEmbedEnhancer } from "@/components/posts/SocialEmbedEnhancer";
-import { createClient } from "@/utils/supabase/server";
-import { getBaseUrl } from "@/lib/url";
 
-type PageProps = {
-  params: Promise<{ id: string }>;
+type PostRow = {
+  id: string;
+  title: string | null;
+  slug: string | null;
+  excerpt: string | null;
+  content: string | null;
+  main_image: string | null;
+  draft_title: string | null;
+  draft_summary: string | null;
+  draft_content: string | null;
+  draft_hero_image: string | null;
+  updated_at: string | null;
+  created_at: string | null;
+  published_at: string | null;
+  source_name: string | null;
+  showcase_data?: unknown[];
+  display_options?: Record<string, unknown>;
+  content_type_slug?: string | null;
 };
 
-export const metadata: Metadata = {
-  title: "Preview — Draft",
-  robots: "noindex, nofollow",
-};
+function getSupabase() {
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  );
+}
 
-export default async function AdminPreviewPage({ params }: PageProps) {
-  const { id } = await params;
-  console.log("[AdminPreview] Previewing ID:", id);
+export default function AdminPreviewPage() {
+  const params = useParams();
+  const id = params?.id as string | undefined;
+  const [post, setPost] = useState<PostRow | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const supabase = await createClient();
-  const {
-    data: { user },
-  } = await supabase.auth.getUser();
-  if (!user) {
-    console.log("[AdminPreview] No user found.");
-    notFound();
+  useEffect(() => {
+    if (!id) {
+      setLoading(false);
+      return;
+    }
+    const fetchPost = async () => {
+      setLoading(true);
+      setError(null);
+      const supabase = getSupabase();
+      const { data: postData, error: fetchError } = await supabase
+        .from("posts")
+        .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at, published_at, source_name, showcase_data, display_options, draft_title, draft_summary, draft_content, draft_hero_image")
+        .eq("id", id)
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error("[AdminPreview] fetch error", fetchError);
+        setError(fetchError.message);
+        setPost(null);
+        setLoading(false);
+        return;
+      }
+      if (!postData) {
+        setPost(null);
+        setLoading(false);
+        return;
+      }
+
+      let content_type_slug: string | null = null;
+      const { data: pct } = await supabase
+        .from("post_content_types")
+        .select("content_type_id")
+        .eq("post_id", postData.id)
+        .maybeSingle();
+      if (pct?.content_type_id != null) {
+        const { data: ct } = await supabase
+          .from("content_types")
+          .select("slug")
+          .eq("id", pct.content_type_id)
+          .maybeSingle();
+        content_type_slug = ct?.slug ?? null;
+      }
+
+      setPost({
+        ...postData,
+        content_type_slug,
+      } as PostRow);
+      setLoading(false);
+    };
+    fetchPost();
+  }, [id]);
+
+  if (!id) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-gray-400">
+        Missing post ID
+      </div>
+    );
   }
 
-  const post = await getPostByIdForPreviewWithClient(supabase, id);
-  console.log("[AdminPreview] Post Found:", post ? "Yes" : "No");
-  if (!post) {
-    console.log("[AdminPreview] notFound: post not found or fetch failed for id:", id);
-    notFound();
+  if (loading) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-amber-200">
+        <span className="font-sans text-sm">Loading Preview…</span>
+      </div>
+    );
   }
+
+  if (error || !post) {
+    return (
+      <div className="flex min-h-[40vh] items-center justify-center text-red-400">
+        {error ? `Error: ${error}` : "Post not found"}
+      </div>
+    );
+  }
+
+  const title = post.draft_title ?? post.title;
+  const content = post.draft_content ?? post.content ?? "";
+  const featured_image = post.draft_hero_image ?? post.main_image;
+  const excerpt = post.draft_summary ?? post.excerpt;
 
   const date = post.updated_at ?? post.created_at;
-  const baseUrl = getBaseUrl().replace(/\/$/, "");
-  const articleUrl = post.slug ? `${baseUrl}/${post.slug}` : baseUrl;
-  const imageUrl = post.featured_image
-    ? post.featured_image.startsWith("http")
-      ? post.featured_image
-      : `${baseUrl}/${post.featured_image.replace(/^\//, "")}`
-    : undefined;
-
-  const newsArticleSchema = {
-    "@context": "https://schema.org",
-    "@type": "NewsArticle",
-    headline: post.title ?? "Untitled",
-    image: imageUrl ? [imageUrl] : undefined,
-    datePublished: (post.published_at ?? post.created_at) ?? undefined,
-    dateModified: post.updated_at ?? undefined,
-    author: {
-      "@type": "Person",
-      name: post.source_name ?? "Nirave Gondhia",
-    },
-    url: articleUrl,
-  };
-
-  const displayOptions = (post as { display_options?: Record<string, unknown> }).display_options ?? {};
+  const displayOptions = post.display_options ?? {};
   const hideHeader = displayOptions.hide_header === true;
 
   return (
     <>
-      <JsonLd data={newsArticleSchema} />
       <Link
         href={`/admin/posts/${post.id}`}
         className="fixed top-4 left-4 z-50 inline-flex items-center gap-1.5 rounded-md border border-white/20 bg-hot-black/90 px-3 py-2 font-sans text-sm text-hot-white backdrop-blur hover:bg-hot-gray"
@@ -92,7 +154,7 @@ export default async function AdminPreviewPage({ params }: PageProps) {
             <div className="mb-8" />
             <header className="mb-6">
               <h1 className="font-serif text-5xl font-bold text-hot-white mb-6 md:text-6xl">
-                {post.title ?? "Untitled"}
+                {title ?? "Untitled"}
               </h1>
               <div className="flex flex-wrap items-center gap-3 text-gray-400">
                 <span className="font-sans text-sm text-hot-white/90">Hot Tech</span>
@@ -106,10 +168,10 @@ export default async function AdminPreviewPage({ params }: PageProps) {
           </>
         )}
 
-        {post.featured_image && (
+        {featured_image && (
           <div className="relative my-12 aspect-video w-full overflow-hidden rounded-xl bg-hot-gray">
             <Image
-              src={post.featured_image}
+              src={featured_image}
               alt=""
               fill
               className="object-cover"
@@ -120,11 +182,12 @@ export default async function AdminPreviewPage({ params }: PageProps) {
         )}
 
         <PostBody
-          html={(post as { content?: string; body?: string }).content || post.body || ""}
+          key={`${post.updated_at ?? ""}-${content.length}`}
+          html={content}
           className="prose prose-lg prose-invert mx-auto max-w-2xl max-w-none"
         />
         {(() => {
-          const opts = (post as { display_options?: Record<string, unknown> }).display_options;
+          const opts = post.display_options;
           const sponsorBlock = opts?.sponsor_block as SponsorBlockData | undefined;
           return (
             sponsorBlock &&
@@ -140,7 +203,7 @@ export default async function AdminPreviewPage({ params }: PageProps) {
             <ShowcaseGrid
               type={post.content_type_slug === "showcase_people" ? "people" : "products"}
               items={post.showcase_data as any}
-              displayOptions={(post as { display_options?: Record<string, unknown> }).display_options}
+              displayOptions={post.display_options}
             />
           )}
         <SocialEmbedEnhancer />
