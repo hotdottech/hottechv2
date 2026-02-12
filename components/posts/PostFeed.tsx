@@ -5,7 +5,7 @@ import { FeedGrid } from "@/components/home/feed-grid";
 import { getMorePosts } from "@/app/actions/posts";
 import type { FeedItem } from "@/lib/types";
 
-const PAGE_SIZE = 20;
+const PAGE_SIZE = 21;
 
 export function PostFeed({ initialPosts }: { initialPosts: FeedItem[] }) {
   const [posts, setPosts] = useState<FeedItem[]>(initialPosts);
@@ -28,7 +28,7 @@ export function PostFeed({ initialPosts }: { initialPosts: FeedItem[] }) {
 
   return (
     <>
-      <FeedGrid items={posts} />
+      <FeedGrid items={posts} useStaggerAnimation={false} />
       {hasMore && (
         <div className="mx-auto max-w-7xl px-4 pb-16 text-center sm:px-6 lg:px-8">
           <button

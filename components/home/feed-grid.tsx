@@ -8,6 +8,8 @@ import type { FeedItem } from "@/lib/types";
 type FeedGridProps = {
   items: FeedItem[];
   sectionTitle?: string;
+  /** When false, items are visible immediately (avoids ghost cards when appending "Load More"). */
+  useStaggerAnimation?: boolean;
 };
 
 const container = {
@@ -25,7 +27,7 @@ const itemVariants = {
   visible: { opacity: 1 },
 };
 
-export function FeedGrid({ items, sectionTitle }: FeedGridProps) {
+export function FeedGrid({ items, sectionTitle, useStaggerAnimation = true }: FeedGridProps) {
   return (
     <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
       {sectionTitle?.trim() && (
@@ -35,11 +37,11 @@ export function FeedGrid({ items, sectionTitle }: FeedGridProps) {
       )}
       <motion.div
         className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3"
-      variants={container}
-      initial="hidden"
-      animate="visible"
-      layout
-    >
+        variants={container}
+        initial={useStaggerAnimation ? "hidden" : "visible"}
+        animate="visible"
+        layout
+      >
       <AnimatePresence mode="popLayout">
         {items.map((feedItem) => (
           <motion.div

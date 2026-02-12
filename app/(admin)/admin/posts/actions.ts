@@ -66,13 +66,15 @@ export type PostRow = {
   showcase_data: unknown[];
   /** Display options (e.g. hide_header for landing page). */
   display_options: Record<string, unknown>;
-};
+  /** First N category names for list display (from post_categories join). */
+  category_names?: string[];
+}
 
 export async function getPosts(): Promise<PostRow[]> {
   const client = await createClient();
   const { data, error } = await client
     .from("posts")
-    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at")
+    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at, post_categories(categories(name))")
     .order("created_at", { ascending: false });
 
   if (error) {
@@ -80,11 +82,17 @@ export async function getPosts(): Promise<PostRow[]> {
     return [];
   }
   return (data ?? []).map((row: Record<string, unknown>) => {
-    const { content, main_image, ...rest } = row;
+    const { content, main_image, post_categories, ...rest } = row;
+    const pcList = Array.isArray(post_categories) ? post_categories : [];
+    const category_names = pcList
+      .map((pc: { categories?: { name?: string } | null }) => pc?.categories?.name)
+      .filter((n): n is string => typeof n === "string" && n.length > 0)
+      .slice(0, 2);
     return {
       ...rest,
       body: content != null ? String(content) : null,
       featured_image: main_image != null ? String(main_image) : null,
+      category_names,
     } as PostRow;
   });
 }

@@ -34,7 +34,7 @@ export function PostsTable({ posts }: { posts: PostRow[] }) {
   if (posts.length === 0) {
     return (
       <tr>
-        <td colSpan={4} className="px-4 py-8 text-center text-gray-400">
+        <td colSpan={5} className="px-4 py-8 text-center text-gray-400">
           No posts yet.{" "}
           <Link href="/admin/posts/new" className="text-hot-white hover:underline">
             Add one
@@ -60,6 +60,11 @@ export function PostsTable({ posts }: { posts: PostRow[] }) {
             >
               {post.title || "Untitled"}
             </Link>
+          </td>
+          <td className="w-40 shrink-0 px-4 py-3 text-sm text-gray-400">
+            {(post.category_names ?? []).length > 0
+              ? (post.category_names ?? []).slice(0, 2).join(", ")
+              : "—"}
           </td>
           <td className="w-32 shrink-0 px-4 py-3 text-right">
             <span

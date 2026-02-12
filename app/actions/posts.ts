@@ -6,7 +6,7 @@ import type { FeedItem } from "@/lib/types";
 /** Fetch published posts for the public archive, ordered by published_at desc. Returns FeedItem[] for grid display. */
 export async function getMorePosts(
   offset: number,
-  limit: number = 20
+  limit: number = 21
 ): Promise<FeedItem[]> {
   const supabase = await createClient();
   const { data, error } = await supabase

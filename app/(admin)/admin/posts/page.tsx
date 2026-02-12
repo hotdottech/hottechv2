@@ -27,6 +27,9 @@ export default async function AdminPostsPage() {
               <th className="w-auto min-w-0 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">
                 Title
               </th>
+              <th className="w-40 shrink-0 px-4 py-3 text-left text-xs font-medium uppercase tracking-wider text-gray-400">
+                Categories
+              </th>
               <th className="w-32 shrink-0 px-4 py-3 text-right text-xs font-medium uppercase tracking-wider text-gray-400">
                 Status
               </th>

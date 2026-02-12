@@ -2,7 +2,7 @@ import { getMorePosts } from "@/app/actions/posts";
 import { PostFeed } from "@/components/posts/PostFeed";
 
 export default async function AllPostsPage() {
-  const initialPosts = await getMorePosts(0, 20);
+  const initialPosts = await getMorePosts(0, 21);
 
   return (
     <div className="container mx-auto py-12">
