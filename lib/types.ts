@@ -74,6 +74,48 @@ export interface SiteSettingsCta {
   url: string;
 }
 
+/** Footer block types for dynamic footer. */
+export type FooterBlockType = "text" | "newsletter" | "menu" | "social";
+
+export interface FooterBlock {
+  id: string;
+  type: FooterBlockType;
+  data?: unknown;
+}
+
+export interface FooterTextBlockData {
+  content?: string;
+}
+
+export interface FooterNewsletterBlockData {
+  title?: string;
+  placeholder?: string;
+  buttonText?: string;
+}
+
+export interface FooterMenuLink {
+  label: string;
+  url: string;
+}
+
+export interface FooterMenuBlockData {
+  links?: FooterMenuLink[];
+}
+
+export interface FooterSocialLink {
+  platform: string;
+  url: string;
+}
+
+export interface FooterSocialBlockData {
+  links?: FooterSocialLink[];
+}
+
+/** Footer config: 3 columns, each an array of blocks. */
+export interface FooterConfig {
+  columns: [FooterBlock[], FooterBlock[], FooterBlock[]];
+}
+
 export interface SiteSettings {
   id: number;
   site_name: string;
@@ -85,6 +127,7 @@ export interface SiteSettings {
   cta_settings: SiteSettingsCta;
   social_links: unknown;
   homepage_layout?: HomepageBlock[];
+  footer_config?: FooterConfig | null;
   seo_title: string | null;
   seo_description: string | null;
   social_twitter: string | null;

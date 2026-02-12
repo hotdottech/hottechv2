@@ -13,6 +13,7 @@ const contentLinks = [
 
 const otherLinks = [
   { href: "/admin/homepage", label: "Homepage" },
+  { href: "/admin/footer", label: "Footer" },
   { href: "/admin/menus", label: "Menu Manager" },
   { href: "/admin/categories", label: "Categories" },
   { href: "/admin/tags", label: "Tags" },
