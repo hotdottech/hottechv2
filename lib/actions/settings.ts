@@ -1,6 +1,6 @@
 "use server";
 
-import { revalidatePath, revalidateTag } from "next/cache";
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 import type { HomepageBlock, FooterConfig } from "@/lib/types";
 
@@ -140,7 +140,7 @@ export async function updateSeoSettings(updates: {
 
   revalidatePath("/");
   revalidatePath("/admin/settings");
-  revalidateTag("site-settings");
+  revalidatePath("/", "layout");
   return {};
 }
 
@@ -211,6 +211,6 @@ export async function updateFooterSettings(
 
   revalidatePath("/");
   revalidatePath("/admin/footer");
-  revalidateTag("site-settings");
+  revalidatePath("/", "layout");
   return {};
 }
