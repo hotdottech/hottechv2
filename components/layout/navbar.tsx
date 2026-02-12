@@ -6,6 +6,7 @@ import Image from "next/image";
 import { Menu, X } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useNewsletter } from "@/components/newsletter/SubscribeModal";
+import { ContactModal } from "@/components/modals/ContactModal";
 import type { SiteSettings } from "@/lib/types";
 
 type NavItem = { label: string; url: string };
@@ -38,6 +39,7 @@ type NavbarProps = {
 
 export function Navbar({ settings }: NavbarProps) {
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [isContactOpen, setIsContactOpen] = useState(false);
   const { openModal } = useNewsletter();
   const siteName = settings?.site_name ?? "Hot Tech";
   const showLogo = Boolean(settings?.show_logo && settings?.logo_url);
@@ -107,7 +109,7 @@ export function Navbar({ settings }: NavbarProps) {
                 if (ctaType === "subscribe") {
                   openModal();
                 } else if (ctaType === "contact") {
-                  document.getElementById("contact")?.scrollIntoView({ behavior: "smooth" });
+                  setIsContactOpen(true);
                 }
               }}
             >
@@ -149,6 +151,11 @@ export function Navbar({ settings }: NavbarProps) {
           </ul>
         </div>
       )}
+
+      <ContactModal
+        isOpen={isContactOpen}
+        onClose={() => setIsContactOpen(false)}
+      />
     </nav>
   );
 }
