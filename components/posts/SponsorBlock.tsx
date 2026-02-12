@@ -49,7 +49,7 @@ function normalizeData(raw: SponsorBlockData | null | undefined): SponsorBlockDa
   if (!raw || !Array.isArray(raw.items)) return null;
   const items: SponsorItem[] = raw.items
     .filter(
-      (x): x is Record<string, unknown> =>
+      (x): x is SponsorItem =>
         x != null && typeof x === "object" && typeof (x as SponsorItem).id === "string"
     )
     .map((x) => ({
