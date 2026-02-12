@@ -139,7 +139,7 @@ export default async function ArticlePage({ params }: PageProps) {
         post.showcase_data.length > 0 && (
           <ShowcaseGrid
             type={post.content_type_slug === "showcase_people" ? "people" : "products"}
-            items={post.showcase_data}
+            items={post.showcase_data as any}
             displayOptions={(post as { display_options?: Record<string, unknown> }).display_options}
           />
         )}
