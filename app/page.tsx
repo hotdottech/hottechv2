@@ -92,11 +92,15 @@ export default async function Home() {
                 const data = block.data as any;
                 const items = smartFeedItemsByBlockId[block.id] ?? [];
                 const sectionTitle = data?.title?.trim() ?? "";
+                const buttonText = data?.buttonText?.trim();
+                const buttonLink = data?.buttonLink?.trim();
                 return (
                   <FeedGrid
                     key={block.id}
                     items={items}
                     sectionTitle={sectionTitle || undefined}
+                    buttonText={buttonText || undefined}
+                    buttonLink={buttonLink || undefined}
                   />
                 );
               }

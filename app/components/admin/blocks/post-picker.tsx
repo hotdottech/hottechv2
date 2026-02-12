@@ -92,7 +92,7 @@ export function PostPicker({ selectedIds, onChange }: Props) {
           className="w-full rounded-md border border-white/10 bg-hot-gray px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none focus:ring-1 focus:ring-hot-white/20"
         />
         {showDropdown && (query.trim() || loading) && (
-          <ul className="absolute z-50 mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-white/20 bg-hot-black py-1 shadow-xl">
+          <ul className="absolute z-[100] mt-1 max-h-48 w-full overflow-y-auto rounded-md border border-white/20 bg-hot-black py-1 shadow-xl">
             {loading ? (
               <li className="px-3 py-2 font-sans text-sm text-gray-400">Searching…</li>
             ) : filteredResults.length === 0 ? (

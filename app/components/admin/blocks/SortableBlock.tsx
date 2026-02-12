@@ -43,7 +43,7 @@ export function SortableBlock({
     <div
       ref={setNodeRef}
       style={style}
-      className={`rounded-lg border border-white/10 bg-hot-gray/50 overflow-hidden ${
+      className={`relative z-10 rounded-lg border border-white/10 bg-hot-gray/50 overflow-visible ${
         isDragging ? "z-50 opacity-90 shadow-xl" : ""
       }`}
     >

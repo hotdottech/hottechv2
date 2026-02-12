@@ -10,6 +10,9 @@ type FeedGridProps = {
   sectionTitle?: string;
   /** When false, items are visible immediately (avoids ghost cards when appending "Load More"). */
   useStaggerAnimation?: boolean;
+  /** Optional "View All" style button below the grid. Rendered when both are set. */
+  buttonText?: string;
+  buttonLink?: string;
 };
 
 const container = {
@@ -27,7 +30,16 @@ const itemVariants = {
   visible: { opacity: 1 },
 };
 
-export function FeedGrid({ items, sectionTitle, useStaggerAnimation = true }: FeedGridProps) {
+export function FeedGrid({
+  items,
+  sectionTitle,
+  useStaggerAnimation = true,
+  buttonText,
+  buttonLink,
+}: FeedGridProps) {
+  const showButton =
+    buttonText?.trim() && buttonLink?.trim();
+
   return (
     <section className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
       {sectionTitle?.trim() && (
@@ -42,23 +54,33 @@ export function FeedGrid({ items, sectionTitle, useStaggerAnimation = true }: Fe
         animate="visible"
         layout
       >
-      <AnimatePresence mode="popLayout">
-        {items.map((feedItem) => (
-          <motion.div
-            key={feedItem.id}
-            layout
-            variants={itemVariants}
-            transition={{ layout: { duration: 0.3 } }}
+        <AnimatePresence mode="popLayout">
+          {items.map((feedItem) => (
+            <motion.div
+              key={feedItem.id}
+              layout
+              variants={itemVariants}
+              transition={{ layout: { duration: 0.3 } }}
+            >
+              {feedItem.type === "video" ? (
+                <VideoCard item={feedItem} />
+              ) : (
+                <ArticleCard item={feedItem} />
+              )}
+            </motion.div>
+          ))}
+        </AnimatePresence>
+      </motion.div>
+      {showButton && (
+        <div className="mt-8 flex justify-center">
+          <a
+            href={buttonLink!.trim()}
+            className="rounded-md bg-hot-white px-6 py-3 font-sans text-sm font-medium text-hot-black transition-colors hover:bg-hot-white/90"
           >
-            {feedItem.type === "video" ? (
-              <VideoCard item={feedItem} />
-            ) : (
-              <ArticleCard item={feedItem} />
-            )}
-          </motion.div>
-        ))}
-      </AnimatePresence>
-    </motion.div>
+            {buttonText!.trim()}
+          </a>
+        </div>
+      )}
     </section>
   );
 }

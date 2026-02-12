@@ -44,6 +44,9 @@ export interface SmartFeedBlockData {
   tagId?: number | null;
   typeId?: number | null;
   limit?: number;
+  /** "View All" button below the feed. */
+  buttonText?: string;
+  buttonLink?: string;
 }
 
 export interface FeedItem {

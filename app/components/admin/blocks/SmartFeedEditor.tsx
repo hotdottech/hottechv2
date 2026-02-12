@@ -24,6 +24,8 @@ const emptyData: SmartFeedBlockData = {
   tagId: null,
   typeId: null,
   limit: 6,
+  buttonText: "",
+  buttonLink: "",
 };
 
 const LIMIT_OPTIONS = [3, 6, 9, 12, 15];
@@ -138,6 +140,30 @@ export function SmartFeedEditor({
               </option>
             ))}
           </select>
+        </div>
+        <div>
+          <label className="block font-sans text-sm font-medium text-gray-400">
+            Button Text (e.g. View All)
+          </label>
+          <input
+            type="text"
+            value={data.buttonText ?? ""}
+            onChange={(e) => update("buttonText", e.target.value)}
+            placeholder="View All"
+            className="mt-1 w-full rounded-md border border-white/10 bg-hot-gray px-3 py-2 font-sans text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none focus:ring-1 focus:ring-hot-white/20"
+          />
+        </div>
+        <div>
+          <label className="block font-sans text-sm font-medium text-gray-400">
+            Button Link
+          </label>
+          <input
+            type="text"
+            value={data.buttonLink ?? ""}
+            onChange={(e) => update("buttonLink", e.target.value)}
+            placeholder="/all or https://..."
+            className="mt-1 w-full rounded-md border border-white/10 bg-hot-gray px-3 py-2 font-sans text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none focus:ring-1 focus:ring-hot-white/20"
+          />
         </div>
       </div>
     </div>
