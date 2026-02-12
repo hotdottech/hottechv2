@@ -14,7 +14,7 @@ function normalizeName(s: string | undefined | null): string {
   return (s ?? "").trim().toLowerCase();
 }
 
-const AUTHORY_FEED_URL = "https://authory.com/hot/rss";
+const AUTHORY_FEED_URL = "https://authory.com/hot/rss?count=100";
 const PLACEHOLDER_IMAGE = "https://placehold.co/600x400/1a1a1a/FFF";
 
 type AuthoryRssItem = Parser.Item & {
@@ -105,7 +105,7 @@ function extractSlugFromUrl(url: string, titleFallback: string): string {
   return slugify(titleFallback);
 }
 
-/** Call OpenAI to classify article by NAME. Returns default (e.g. News) on parse failure or missing API key. */
+/** Call OpenAI to classify article by NAME. Returns default (e.g. Consumer Tech) on parse failure or missing API key. */
 async function classifyContent(
   title: string,
   summary: string,
@@ -203,14 +203,10 @@ export async function GET() {
       if (n) validContentTypes.set(normalizeName(n), r.id);
     }
 
-    const defaultCategoryName =
-      categories.find((r) => normalizeName(r.name) === "news")?.name?.trim() ??
-      categories[0]?.name?.trim() ??
-      "";
-    const defaultCategoryId =
-      categories.find((r) => (r.name ?? "").toLowerCase() === "news")?.id ??
-      categories[0]?.id ??
-      null;
+    const defaultCategory =
+      categories.find((r) => normalizeName(r.name) === "consumer tech") ?? categories[0];
+    const defaultCategoryName = defaultCategory?.name?.trim() ?? "";
+    const defaultCategoryId = defaultCategory?.id ?? null;
 
     const categoryNamesList = categories.map((r) => r.name ?? "").filter(Boolean).join(", ");
     const tagNamesList = tags.map((r) => r.name ?? "").filter(Boolean).join(", ");
@@ -233,11 +229,11 @@ export async function GET() {
     // Step 2: Parse
     const feed = await parser.parseString(cleanXml);
     const items = (feed.items ?? []) as AuthoryRssItem[];
-    const itemsToProcess = items.slice(0, 10);
+    const itemsToProcess = items.slice(0, 100);
     let added = 0;
     let skipped = 0;
 
-    // Step 3: Loop & Upsert (limit 10 for testing; duplicate check by guid/original_url/slug)
+    // Step 3: Loop & Upsert (limit 100; duplicate check by guid/original_url/slug)
     for (let i = 0; i < itemsToProcess.length; i++) {
       const item = itemsToProcess[i];
       const guid = item.guid ?? item.link ?? null;
