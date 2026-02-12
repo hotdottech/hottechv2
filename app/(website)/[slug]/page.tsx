@@ -86,7 +86,7 @@ export default async function ArticlePage({ params }: PageProps) {
   return (
     <>
       <JsonLd data={newsArticleSchema} />
-      <ViewTracker slug={post.slug} />
+      <ViewTracker slug={post.slug ?? undefined} />
       <AdminEditShortcut url={`/admin/posts/${post.id}`} />
       <article className={`mx-auto max-w-4xl px-4 pt-8 sm:px-6 lg:px-8 ${isDraftPreview ? "pb-24" : "pb-16"}`}>
       {!hideHeader && (
