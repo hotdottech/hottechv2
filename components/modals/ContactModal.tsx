@@ -125,7 +125,7 @@ export function ContactModal({ isOpen, onClose }: ContactModalProps) {
               <select
                 name="topic"
                 value={topic}
-                onChange={(e) => setTopic(e.target.value)}
+                onChange={(e) => setTopic(e.target.value as any)}
                 disabled={isSubmitting}
                 className="h-12 w-full flex-1 rounded-md border border-white/10 bg-white/5 px-4 font-sans text-hot-white focus:border-white/30 focus:outline-none focus:ring-0"
                 aria-label="Topic"

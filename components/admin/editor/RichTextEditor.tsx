@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useState, useEffect, useRef } from "react";
+import { useCallback, useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import { useEditor, EditorContent } from "@tiptap/react";
 import StarterKit from "@tiptap/starter-kit";
 import TextAlign from "@tiptap/extension-text-align";
@@ -78,6 +78,10 @@ const ToolbarButton = ({
   </button>
 );
 
+export type RichTextEditorHandle = {
+  getHTML: () => string;
+};
+
 type RichTextEditorProps = {
   content?: string;
   onChange?: (html: string) => void;
@@ -85,12 +89,12 @@ type RichTextEditorProps = {
   className?: string;
 };
 
-export function RichTextEditor({
+export const RichTextEditor = forwardRef<RichTextEditorHandle, RichTextEditorProps>(function RichTextEditor({
   content = "",
   onChange,
   placeholder = "Write your story…",
   className,
-}: RichTextEditorProps) {
+}, ref) {
   const [imagePickerOpen, setImagePickerOpen] = useState(false);
   const [postPickerOpen, setPostPickerOpen] = useState(false);
   const [sponsorModalOpen, setSponsorModalOpen] = useState(false);
@@ -122,6 +126,10 @@ export function RichTextEditor({
       onChange?.(editor.getHTML());
     },
   });
+
+  useImperativeHandle(ref, () => ({
+    getHTML: () => editor?.getHTML() ?? "",
+  }), [editor]);
 
   const handleImageSelect = useCallback(
     (url: string, alt?: string) => {
@@ -338,4 +346,4 @@ export function RichTextEditor({
       />
     </div>
   );
-}
+});

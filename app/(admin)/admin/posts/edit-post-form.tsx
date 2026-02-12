@@ -4,8 +4,8 @@ import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Eye } from "lucide-react";
-import { RichTextEditor } from "@/components/admin/editor/RichTextEditor";
-import { updatePost, createPost, type PostRow } from "./actions";
+import { RichTextEditor, type RichTextEditorHandle } from "@/components/admin/editor/RichTextEditor";
+import { updatePost, createPost, publishPost, type PostRow } from "./actions";
 import { createTag } from "@/lib/actions/tags";
 import type { CategoryRow } from "@/lib/actions/categories";
 import type { TagRow } from "@/lib/actions/tags";
@@ -111,8 +111,10 @@ export function EditPostForm({
     ) as ShowcaseItem[];
   });
   const [saving, setSaving] = useState(false);
+  const [isPublishing, setIsPublishing] = useState(false);
   const [error, setError] = useState("");
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
+  const editorRef = useRef<RichTextEditorHandle>(null);
 
   const categoryRows = useMemo(() => buildCategoryRows(categories), [categories]);
   const selectedContentTypeSlug =
@@ -186,10 +188,7 @@ export function EditPostForm({
     return () => clearTimeout(t);
   }, [successMessage]);
 
-  async function handleSave(asDraft: boolean) {
-    setError("");
-    setSuccessMessage(null);
-    setSaving(true);
+  async function buildPostFormData(): Promise<FormData | null> {
     const newTags = selectedTags.filter((t) => t.isNew);
     const existingTagIds = selectedTags.filter((t) => !t.isNew).map((t) => t.id);
     const createdIds: number[] = [];
@@ -199,20 +198,19 @@ export function EditPostForm({
       const res = await createTag(fd);
       if (res.error) {
         setError(res.error);
-        setSaving(false);
-        return;
+        return null;
       }
       if (res.id != null) createdIds.push(res.id);
     }
     const finalTagIds = [...existingTagIds, ...createdIds];
-
+    const latestContent = editorRef.current?.getHTML() ?? body;
     const formData = new FormData();
     formData.set("title", title);
     formData.set("slug", slug);
     formData.set("excerpt", excerpt);
-    formData.set("body", body);
+    formData.set("body", latestContent);
     formData.set("featured_image", featuredImageUrl ?? "");
-    formData.set("status", asDraft ? "draft" : "published");
+    formData.set("status", "draft");
     if (publishedAt) formData.set("published_at", publishedAt);
     formData.set("source_name", sourceName);
     formData.set("original_url", originalUrl);
@@ -224,20 +222,45 @@ export function EditPostForm({
     if (selectedContentTypeId != null) formData.set("content_type_id", String(selectedContentTypeId));
     formData.set("showcase_data", JSON.stringify(showcaseData));
     formData.set("display_options", JSON.stringify(displayOptions));
+    return formData;
+  }
+
+  async function handleSave(asDraft: boolean) {
+    setError("");
+    setSuccessMessage(null);
+    setSaving(true);
+    const formData = await buildPostFormData();
+    if (!formData) {
+      setSaving(false);
+      toast.error("Failed to save post");
+      return;
+    }
+    formData.set("status", asDraft ? "draft" : "published");
 
     if (post?.id) {
-      const result = await updatePost(post.id, formData);
-      setSaving(false);
-      if (result.error) {
-        setError(result.error);
+      const saveResult = await updatePost(post.id, formData);
+      if (saveResult.error) {
+        setSaving(false);
+        setError(saveResult.error);
         toast.error("Failed to save post");
         return;
       }
-      if (result.success) {
-        setSuccessMessage("Saved!");
-        toast.success("Post updated successfully");
+      if (!asDraft) {
+        const pubResult = await publishPost(post.id);
+        setSaving(false);
+        if (pubResult.error) {
+          setError(pubResult.error);
+          toast.error("Draft saved but publish failed");
+          return;
+        }
+        setSuccessMessage("Published!");
+        toast.success("Post is now live");
         return;
       }
+      setSaving(false);
+      setSuccessMessage("Saved!");
+      toast.success("Draft saved");
+      return;
     } else {
       const result = await createPost(formData);
       setSaving(false);
@@ -251,6 +274,35 @@ export function EditPostForm({
         router.push(`/admin/posts/${result.id}`);
       }
     }
+  }
+
+  async function handlePublish() {
+    if (!post?.id) return;
+    setError("");
+    setSuccessMessage(null);
+    setIsPublishing(true);
+    const formData = await buildPostFormData();
+    if (!formData) {
+      setIsPublishing(false);
+      toast.error("Failed to save draft");
+      return;
+    }
+    const saveResult = await updatePost(post.id, formData);
+    if (saveResult.error) {
+      setIsPublishing(false);
+      setError(saveResult.error);
+      toast.error("Failed to publish");
+      return;
+    }
+    const pubResult = await publishPost(post.id);
+    setIsPublishing(false);
+    if (pubResult.error) {
+      setError(pubResult.error);
+      toast.error("Failed to publish");
+      return;
+    }
+    setSuccessMessage("Published!");
+    toast.success("Post published successfully!");
   }
 
   return (
@@ -286,6 +338,7 @@ export function EditPostForm({
             Body
           </label>
           <RichTextEditor
+            ref={editorRef}
             content={body}
             onChange={setBody}
             placeholder="Write your story…"
@@ -429,24 +482,30 @@ export function EditPostForm({
               <button
                 type="button"
                 onClick={() => handleSave(true)}
-                disabled={saving}
-                className="flex-1 rounded-md border border-white/20 bg-white/10 py-2 font-sans text-sm font-medium text-hot-white transition-colors hover:bg-white/15 disabled:opacity-50"
+                disabled={saving || isPublishing}
+                className="flex-1 rounded-md border border-white/20 bg-white/5 py-2 font-sans text-sm font-medium text-hot-white transition-colors hover:bg-white/10 disabled:opacity-50"
               >
                 {saving ? "Saving…" : "Save Draft"}
               </button>
               <button
                 type="button"
-                onClick={() => handleSave(false)}
-                disabled={saving}
+                onClick={() => (post?.id ? handlePublish() : handleSave(false))}
+                disabled={saving || isPublishing}
                 className="flex-1 rounded-md bg-hot-white py-2 font-sans text-sm font-medium text-hot-black transition-colors hover:bg-hot-white/90 disabled:opacity-50"
               >
-                {saving ? "Saving…" : "Publish"}
+                {post?.id
+                  ? isPublishing
+                    ? "Publishing…"
+                    : "Publish"
+                  : saving
+                    ? "Saving…"
+                    : "Publish"}
               </button>
             </div>
             <button
               type="button"
-              onClick={() => window.open("/" + slug, "_blank")}
-              disabled={!slug?.trim()}
+              onClick={() => { if (post?.id) window.open(`/admin/preview/${post.id}`, "_blank"); }}
+              disabled={!post?.id}
               className="flex w-full items-center justify-center gap-2 rounded-md border border-white/20 bg-white/5 py-2 font-sans text-sm font-medium text-hot-white transition-colors hover:bg-white/10 disabled:opacity-50 disabled:pointer-events-none"
             >
               <Eye className="h-4 w-4" />

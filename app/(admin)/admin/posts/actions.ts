@@ -102,7 +102,7 @@ export async function getPostById(id: string): Promise<PostRow | null> {
   const client = await createClient();
   const { data, error } = await client
     .from("posts")
-    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at, published_at, source_name, original_url, meta_title, meta_description, canonical_url, showcase_data, display_options")
+    .select("id, title, slug, excerpt, content, main_image, status, created_at, updated_at, published_at, source_name, original_url, meta_title, meta_description, canonical_url, showcase_data, display_options, draft_title, draft_summary, draft_content, draft_hero_image")
     .eq("id", id)
     .maybeSingle();
 
@@ -113,10 +113,17 @@ export async function getPostById(id: string): Promise<PostRow | null> {
   if (!data) return null;
   const showcaseData = data.showcase_data;
   const displayOptions = data.display_options;
+  const raw = data as Record<string, unknown>;
+  const draftTitle = raw.draft_title as string | null | undefined;
+  const draftSummary = raw.draft_summary as string | null | undefined;
+  const draftContent = raw.draft_content as string | null | undefined;
+  const draftHero = raw.draft_hero_image as string | null | undefined;
   return {
     ...data,
-    body: data.content != null ? String(data.content) : null,
-    featured_image: data.main_image != null ? String(data.main_image) : null,
+    title: draftTitle ?? data.title,
+    excerpt: draftSummary ?? data.excerpt ?? (raw.summary as string | null) ?? null,
+    body: draftContent != null ? String(draftContent) : (data.content != null ? String(data.content) : null),
+    featured_image: draftHero != null ? String(draftHero) : (data.main_image != null ? String(data.main_image) : null),
     showcase_data: Array.isArray(showcaseData) ? showcaseData : [],
     display_options: displayOptions != null && typeof displayOptions === "object" && !Array.isArray(displayOptions) ? displayOptions as Record<string, unknown> : {},
   } as PostRow;
@@ -288,18 +295,10 @@ export async function updatePost(
     return { error: "Unauthorized." };
   }
 
-  const title = (formData.get("title") as string)?.trim();
-  let slug = (formData.get("slug") as string)?.trim();
-  const excerpt = (formData.get("excerpt") as string)?.trim();
+  const title = (formData.get("title") as string)?.trim() ?? null;
+  const excerpt = (formData.get("excerpt") as string)?.trim() ?? null;
   const body = formData.get("body") as string;
   const featured_image = (formData.get("featured_image") as string) || null;
-  const status = (formData.get("status") as string) || "draft";
-  const published_at = (formData.get("published_at") as string) || null;
-  const source_name = (formData.get("source_name") as string)?.trim() || null;
-  const original_url = (formData.get("original_url") as string)?.trim() || null;
-  const meta_title = (formData.get("meta_title") as string)?.trim() || null;
-  const meta_description = (formData.get("meta_description") as string)?.trim() || null;
-  const canonical_url = (formData.get("canonical_url") as string)?.trim() || null;
   const categoryIds = (formData.getAll("category_ids") as string[]).map((s) => parseInt(s, 10)).filter((n) => !Number.isNaN(n));
   const tagIds = (formData.getAll("tag_ids") as string[]).map((s) => parseInt(s, 10)).filter((n) => !Number.isNaN(n));
   const contentTypeIdRaw = formData.get("content_type_id");
@@ -308,37 +307,13 @@ export async function updatePost(
       ? parseInt(String(contentTypeIdRaw), 10)
       : null;
   const contentTypeIdValid = contentTypeId != null && !Number.isNaN(contentTypeId) ? contentTypeId : null;
-  const showcaseDataRaw = formData.get("showcase_data");
-  const showcaseData =
-    showcaseDataRaw != null && String(showcaseDataRaw).trim() !== ""
-      ? (JSON.parse(String(showcaseDataRaw)) as unknown[])
-      : null;
-  const displayOptionsRaw = formData.get("display_options");
-  const displayOptions =
-    displayOptionsRaw != null && String(displayOptionsRaw).trim() !== ""
-      ? (JSON.parse(String(displayOptionsRaw)) as Record<string, unknown>)
-      : null;
-
-  if (!slug && title) {
-    slug = slugify(title);
-  }
 
   const payload: Record<string, unknown> = {
     updated_at: new Date().toISOString(),
-    status,
-    main_image: featured_image,
-    content: body ?? null,
-    excerpt: excerpt ?? null,
-    slug: slug ?? null,
-    title: title ?? undefined,
-    ...(published_at && { published_at: new Date(published_at).toISOString() }),
-    source_name,
-    original_url,
-    meta_title,
-    meta_description,
-    canonical_url,
-    ...(showcaseData !== null && { showcase_data: showcaseData }),
-    ...(displayOptions !== null && { display_options: displayOptions }),
+    draft_title: title ?? null,
+    draft_summary: excerpt ?? null,
+    draft_content: body ?? null,
+    draft_hero_image: featured_image ?? null,
   };
 
   const client = await createClient();
@@ -365,7 +340,54 @@ export async function updatePost(
 
   revalidatePath("/admin/posts");
   revalidatePath(`/admin/posts/${id}`);
+  revalidatePath(`/admin/preview/${id}`);
   return { success: true, message: "Draft saved" };
+}
+
+export async function publishPost(id: string): Promise<{ success: boolean; error?: string }> {
+  const client = await createClient();
+  const { data: post, error: fetchError } = await client
+    .from("posts")
+    .select("id, slug, title, excerpt, content, main_image, draft_title, draft_summary, draft_content, draft_hero_image, published_at")
+    .eq("id", id)
+    .maybeSingle();
+
+  if (fetchError) {
+    console.error("[publishPost] fetch", fetchError);
+    return { success: false, error: fetchError.message };
+  }
+  if (!post) {
+    return { success: false, error: "Post not found" };
+  }
+
+  const raw = post as Record<string, unknown>;
+  const draftTitle = raw.draft_title as string | null | undefined;
+  const draftSummary = raw.draft_summary as string | null | undefined;
+  const draftContent = raw.draft_content as string | null | undefined;
+  const draftHero = raw.draft_hero_image as string | null | undefined;
+
+  const payload = {
+    title: draftTitle ?? post.title,
+    excerpt: draftSummary ?? post.excerpt ?? null,
+    content: draftContent ?? post.content ?? null,
+    main_image: draftHero ?? post.main_image ?? null,
+    status: "published",
+    published_at: post.published_at ? post.published_at : new Date().toISOString(),
+    updated_at: new Date().toISOString(),
+  };
+
+  const { error: updateError } = await client.from("posts").update(payload).eq("id", id);
+  if (updateError) {
+    console.error("[publishPost] update", updateError);
+    return { success: false, error: updateError.message };
+  }
+
+  const slug = post.slug as string | null;
+  if (slug) revalidatePath(`/${slug}`);
+  revalidatePath("/");
+  revalidatePath("/admin/posts");
+  revalidatePath(`/admin/posts/${id}`);
+  return { success: true };
 }
 
 export async function deletePost(id: string): Promise<{ error?: string }> {

@@ -293,6 +293,8 @@ export async function GET() {
           title,
           slug,
           featured_image,
+          main_image: featured_image,
+          draft_hero_image: featured_image,
           source_name: getPublisherFromUrl(link),
           original_url,
           excerpt: snippet,
