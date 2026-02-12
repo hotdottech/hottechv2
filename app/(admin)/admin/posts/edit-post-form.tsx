@@ -2,6 +2,7 @@
 
 import { useState, useMemo, useRef, useEffect } from "react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import { Eye } from "lucide-react";
 import { RichTextEditor } from "@/components/admin/editor/RichTextEditor";
 import { updatePost, createPost, type PostRow } from "./actions";
@@ -111,6 +112,7 @@ export function EditPostForm({
   });
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const categoryRows = useMemo(() => buildCategoryRows(categories), [categories]);
   const selectedContentTypeSlug =
@@ -178,8 +180,15 @@ export function EditPostForm({
     });
   }
 
+  useEffect(() => {
+    if (!successMessage) return;
+    const t = setTimeout(() => setSuccessMessage(null), 3000);
+    return () => clearTimeout(t);
+  }, [successMessage]);
+
   async function handleSave(asDraft: boolean) {
     setError("");
+    setSuccessMessage(null);
     setSaving(true);
     const newTags = selectedTags.filter((t) => t.isNew);
     const existingTagIds = selectedTags.filter((t) => !t.isNew).map((t) => t.id);
@@ -221,17 +230,26 @@ export function EditPostForm({
       setSaving(false);
       if (result.error) {
         setError(result.error);
+        toast.error("Failed to save post");
         return;
       }
-      router.push("/admin/posts");
+      if (result.success) {
+        setSuccessMessage("Saved!");
+        toast.success("Post updated successfully");
+        return;
+      }
     } else {
       const result = await createPost(formData);
       setSaving(false);
       if (result.error) {
         setError(result.error);
+        toast.error("Failed to save post");
         return;
       }
-      if (result.id) router.push(`/admin/posts/${result.id}`);
+      if (result.id) {
+        toast.success("Post created");
+        router.push(`/admin/posts/${result.id}`);
+      }
     }
   }
 
@@ -286,6 +304,11 @@ export function EditPostForm({
       </div>
 
       <aside className="sticky top-20 h-fit w-full shrink-0 space-y-4 p-4 lg:w-[33.333%]">
+        {successMessage && (
+          <div className="rounded-md bg-green-500/10 px-4 py-3 text-sm text-green-400">
+            {successMessage}
+          </div>
+        )}
         {error && (
           <div className="rounded-md bg-red-500/10 px-4 py-3 text-sm text-red-400">
             {error}
@@ -409,7 +432,7 @@ export function EditPostForm({
                 disabled={saving}
                 className="flex-1 rounded-md border border-white/20 bg-white/10 py-2 font-sans text-sm font-medium text-hot-white transition-colors hover:bg-white/15 disabled:opacity-50"
               >
-                Save Draft
+                {saving ? "Saving…" : "Save Draft"}
               </button>
               <button
                 type="button"
@@ -417,7 +440,7 @@ export function EditPostForm({
                 disabled={saving}
                 className="flex-1 rounded-md bg-hot-white py-2 font-sans text-sm font-medium text-hot-black transition-colors hover:bg-hot-white/90 disabled:opacity-50"
               >
-                Publish
+                {saving ? "Saving…" : "Publish"}
               </button>
             </div>
             <button

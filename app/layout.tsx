@@ -4,6 +4,7 @@ import { constructMetadata } from "@/lib/seo";
 import { JsonLd } from "@/components/seo/JsonLd";
 import { NewsletterProvider } from "@/components/newsletter/SubscribeModal";
 import { AdminDashboardShortcut } from "@/components/admin/AdminDashboardShortcut";
+import { Toaster } from "@/components/ui/Toaster";
 import { getSiteSettings } from "@/lib/data";
 import { getBaseUrl } from "@/lib/url";
 import "./globals.css";
@@ -58,6 +59,7 @@ export default async function RootLayout({
         <NewsletterProvider>
           {children}
           <AdminDashboardShortcut />
+          <Toaster />
         </NewsletterProvider>
       </body>
     </html>

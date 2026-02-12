@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import { createClient } from "@/utils/supabase/server";
 
 const BUCKET = "post-images";
@@ -278,7 +279,7 @@ export async function createPost(formData: FormData): Promise<{ id?: string; err
 export async function updatePost(
   id: string,
   formData: FormData
-): Promise<{ error?: string }> {
+): Promise<{ success?: boolean; message?: string; error?: string }> {
   const supabaseServer = await createClient();
   const {
     data: { user },
@@ -361,7 +362,10 @@ export async function updatePost(
   if (contentTypeIdValid != null) {
     await client.from("post_content_types").insert({ post_id: id, content_type_id: contentTypeIdValid });
   }
-  return {};
+
+  revalidatePath("/admin/posts");
+  revalidatePath(`/admin/posts/${id}`);
+  return { success: true, message: "Draft saved" };
 }
 
 export async function deletePost(id: string): Promise<{ error?: string }> {
