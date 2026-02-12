@@ -19,7 +19,7 @@ export function ContactModal({ isOpen, onClose }: ContactModalProps) {
   const [mounted, setMounted] = useState(false);
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
-  const [topic, setTopic] = useState(TOPICS[0].value);
+  const [topic, setTopic] = useState<string>(TOPICS[0].value);
   const [message, setMessage] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
