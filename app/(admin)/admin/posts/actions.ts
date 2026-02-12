@@ -384,7 +384,9 @@ export async function publishPost(id: string): Promise<{ success: boolean; error
 
   const slug = post.slug as string | null;
   if (slug) revalidatePath(`/${slug}`);
+  revalidatePath("/", "layout");
   revalidatePath("/");
+  revalidatePath("/all");
   revalidatePath("/admin/posts");
   revalidatePath(`/admin/posts/${id}`);
   return { success: true };
