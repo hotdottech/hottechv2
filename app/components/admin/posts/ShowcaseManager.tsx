@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef, useEffect } from "react";
 import { ChevronUp, ChevronDown, Pencil, Trash2, Plus, Copy } from "lucide-react";
 import { UniversalImagePicker } from "@/app/components/admin/shared/UniversalImagePicker";
 
@@ -15,6 +15,15 @@ export const BADGE_COLORS = [
   { value: "black", label: "Black", classes: "bg-black text-white" },
 ] as const;
 
+const BUTTON_COLORS = [
+  { value: "gray", label: "Gray", classes: "bg-gray-500 text-white border-gray-600" },
+  { value: "gold", label: "Gold", classes: "bg-yellow-500 text-black border-yellow-600" },
+  { value: "red", label: "Red", classes: "bg-red-600 text-white border-red-700" },
+  { value: "blue", label: "Blue", classes: "bg-blue-600 text-white border-blue-700" },
+  { value: "green", label: "Green", classes: "bg-green-600 text-white border-green-700" },
+  { value: "black", label: "Black", classes: "bg-black text-white border-gray-800" },
+] as const;
+
 export type ShowcaseItem = {
   id: string;
   image: string;
@@ -25,6 +34,10 @@ export type ShowcaseItem = {
   hide_title?: boolean;
   link?: string;
   description?: string;
+  /** CTA button label (e.g. "View Deal"). */
+  buttonText?: string;
+  /** Button color key for Tailwind (e.g. "gold", "red"). */
+  buttonColor?: string;
 };
 
 type ShowcaseManagerProps = {
@@ -39,6 +52,37 @@ function generateId(): string {
   return `showcase-${Date.now()}-${Math.random().toString(36).slice(2, 9)}`;
 }
 
+function AutoExpandTextarea({
+  value,
+  onChange,
+  placeholder,
+  className,
+}: {
+  value: string;
+  onChange: (value: string) => void;
+  placeholder?: string;
+  className?: string;
+}) {
+  const ref = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${el.scrollHeight}px`;
+  }, [value]);
+  return (
+    <textarea
+      ref={ref}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      rows={3}
+      className={className}
+      style={{ minHeight: "4.5rem" }}
+    />
+  );
+}
+
 const emptyItem: Omit<ShowcaseItem, "id"> = {
   image: "",
   title: "",
@@ -48,6 +92,8 @@ const emptyItem: Omit<ShowcaseItem, "id"> = {
   hide_title: false,
   link: "",
   description: "",
+  buttonText: "View Deal",
+  buttonColor: "gray",
 };
 
 export function ShowcaseManager({ items, onChange, type, displayOptions = {}, onDisplayOptionsChange }: ShowcaseManagerProps) {
@@ -87,6 +133,8 @@ export function ShowcaseManager({ items, onChange, type, displayOptions = {}, on
       link: form.link?.trim() || undefined,
       description: form.description?.trim() || undefined,
       image: form.image?.trim() || "",
+      buttonText: form.buttonText?.trim() || undefined,
+      buttonColor: form.buttonColor?.trim() || undefined,
     };
     if (editingIndex !== null) {
       const nextItems = [...items];
@@ -130,7 +178,7 @@ export function ShowcaseManager({ items, onChange, type, displayOptions = {}, on
     [displayOptions, onDisplayOptionsChange]
   );
 
-  const gridColumns = Math.min(5, Math.max(3, Number(displayOptions?.grid_columns) || 3));
+  const gridColumns = Math.min(5, Math.max(1, Number(displayOptions?.grid_columns) || 3));
   const setGridColumns = useCallback(
     (value: number) => {
       onDisplayOptionsChange?.({ ...displayOptions, grid_columns: value });
@@ -171,6 +219,8 @@ export function ShowcaseManager({ items, onChange, type, displayOptions = {}, on
               onChange={(e) => setGridColumns(Number(e.target.value))}
               className="rounded border border-white/10 bg-hot-black px-2 py-1 font-sans text-sm text-hot-white focus:border-hot-white/30 focus:outline-none"
             >
+              <option value={1}>1 (List)</option>
+              <option value={2}>2 (Hero)</option>
               <option value={3}>3</option>
               <option value={4}>4</option>
               <option value={5}>5</option>
@@ -373,14 +423,42 @@ export function ShowcaseManager({ items, onChange, type, displayOptions = {}, on
               </div>
               <div>
                 <label className="block font-sans text-xs text-gray-500">
+                  Button Text
+                </label>
+                <input
+                  type="text"
+                  value={form.buttonText ?? ""}
+                  onChange={(e) => setForm((f) => ({ ...f, buttonText: e.target.value }))}
+                  placeholder="View Deal"
+                  className="mt-1 w-full rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
+                />
+              </div>
+              <div>
+                <label className="block font-sans text-xs text-gray-500">
+                  Button Color
+                </label>
+                <div className="mt-1.5 flex flex-wrap gap-2">
+                  {BUTTON_COLORS.map(({ value, label, classes }) => (
+                    <button
+                      key={value}
+                      type="button"
+                      onClick={() => setForm((f) => ({ ...f, buttonColor: value }))}
+                      className={`rounded-md border-2 px-2.5 py-1 font-sans text-xs font-medium transition-opacity ${classes} ${(form.buttonColor ?? "gray") === value ? "ring-2 ring-white ring-offset-2 ring-offset-hot-black" : "opacity-80 hover:opacity-100"}`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label className="block font-sans text-xs text-gray-500">
                   Description (why they won)
                 </label>
-                <textarea
+                <AutoExpandTextarea
                   value={form.description ?? ""}
-                  onChange={(e) => setForm((f) => ({ ...f, description: e.target.value }))}
+                  onChange={(value) => setForm((f) => ({ ...f, description: value }))}
                   placeholder="Short description"
-                  rows={3}
-                  className="mt-1 w-full rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
+                  className="mt-1 w-full min-h-[4.5rem] rounded-md border border-white/10 bg-hot-black px-3 py-2 font-sans text-sm text-hot-white placeholder-gray-500 focus:border-hot-white/30 focus:outline-none"
                 />
               </div>
             </div>
